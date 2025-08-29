@@ -1,0 +1,100 @@
+/* Container for the Event Form */
+.event-form-container {
+  max-width: 700px;
+  margin: 30px auto;
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 0 12px rgba(0,0,0,0.1);
+  padding: 25px 40px;
+}
+
+/* Form Title */
+.event-form-container h2 {
+  text-align: center;
+  color: #33475b;
+  margin-bottom: 30px;
+  font-weight: 700;
+}
+
+/* Form Labels */
+.event-form-container label {
+  font-weight: 600;
+  color: #566069;
+  margin-bottom: 6px;
+  display: block;
+}
+
+/* Inputs, Selects, and Textareas */
+.event-form-container input[type="text"],
+.event-form-container input[type="number"],
+.event-form-container input[type="date"],
+.event-form-container input[type="time"],
+.event-form-container select,
+.event-form-container textarea {
+  width: 100%;
+  padding: 12px 14px;
+  margin-bottom: 20px;
+  border: 1.5px solid #ced4da;
+  border-radius: 6px;
+  font-size: 16px;
+  transition: border-color 0.3s ease;
+}
+
+.event-form-container input[type="text"]:focus,
+.event-form-container input[type="number"]:focus,
+.event-form-container input[type="date"]:focus,
+.event-form-container input[type="time"]:focus,
+.event-form-container select:focus,
+.event-form-container textarea:focus {
+  border-color: #007bff;
+  outline: none;
+}
+
+/* Checkboxes styling */
+.event-form-container .form-check {
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+/* Checkbox Label */
+.event-form-container .form-check-label {
+  font-weight: 500;
+  color: #495057;
+}
+
+/* Budget Allocations inputs */
+.event-form-container .budget-input {
+  max-width: 150px;
+  display: inline-block;
+  margin-left: 10px;
+}
+
+/* Submit Button */
+.event-form-container .btn-submit {
+  background-color: #007bff;
+  border: none;
+  color: #fff;
+  font-weight: 600;
+  font-size: 18px;
+  padding: 12px 30px;
+  border-radius: 25px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  display: block;
+  margin: 30px auto 10px;
+}
+
+.event-form-container .btn-submit:hover {
+  background-color: #0056b3;
+}
+
+/* Error Message */
+.event-form-container .error-message {
+  color: #dc3545;
+  font-size: 14px;
+  margin-bottom: 15px;
+  text-align: center;
+}
+html {
+  scroll-behavior: smooth;
+}
