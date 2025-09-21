@@ -116,7 +116,7 @@ const Header = () => {
               <div className="d-flex gap-2 ms-3">
                 <Button
                   as={Link}
-                  to="/user-dashboard"
+                  to="/auth?type=client"
                   variant={scrolled ? "outline-primary" : "outline-light"}
                   size="sm"
                   className="btn-modern d-flex align-items-center gap-1"
@@ -126,7 +126,7 @@ const Header = () => {
                 </Button>
                 <Button
                   as={Link}
-                  to="/vendor-dashboard"
+                  to="/auth?type=vendor"
                   variant={scrolled ? "primary" : "light"}
                   size="sm"
                   className="btn-modern d-flex align-items-center gap-1"

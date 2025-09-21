@@ -205,6 +205,7 @@ const Contact = () => {
                         <Form.Control
                           type="tel"
                           name="phone"
+                          pattern='[0-9]{10}'
                           value={formData.phone}
                           onChange={handleInputChange}
                           className="form-control-modern"

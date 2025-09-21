@@ -6,14 +6,9 @@ import BookingModal from '../components/BookingModal';
 import ReviewSystem from '../components/ReviewSystem';
 
 const servicesList = [
-  { name: "Catering", key: "catering", icon: "", color: "#f59e0b" },
-  { name: "Decoration", key: "decoration", icon: "", color: "#ec4899" },
-  { name: "Venue", key: "venue", icon: "", color: "#6366f1" },
-  { name: "Photography", key: "photography", icon: "", color: "#10b981" },
-  { name: "Transportation", key: "transportation", icon: "", color: "#8b5cf6" },
-  { name: "Music & DJ", key: "music", icon: "", color: "#f97316" },
-  { name: "Flowers", key: "flowers", icon: "", color: "#06b6d4" },
-  { name: "Security", key: "security", icon: "", color: "#64748b" },
+  { name: "Catering", key: "catering", icon: "🍽️", color: "#f59e0b" },
+  { name: "Decoration", key: "decoration", icon: "🎨", color: "#ec4899" },
+  { name: "Venue", key: "venue", icon: "🏛️", color: "#6366f1" },
   { name: "Photography", key: "photography", icon: "📸", color: "#10b981" },
   { name: "Transportation", key: "transportation", icon: "🚗", color: "#8b5cf6" },
   { name: "Music & DJ", key: "music", icon: "🎵", color: "#f97316" },

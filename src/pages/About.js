@@ -33,22 +33,28 @@ const About = () => {
 
   const team = [
     {
-      name: 'Pranav Kumar',
-      role: 'Founder & CEO',
-      description: 'Visionary leader with 10+ years in event management and technology.',
-      image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=300&h=300&fit=crop&crop=face'
+      name: 'Pranava Aithal K',
+      role: 'Backend Developer',
+      // description: 'Visionary leader with 10+ years in event management and technology.',
+      image: '/images/team/pranavaaithal.jpg'
     },
     {
-      name: 'Sarah Johnson',
-      role: 'Head of Operations',
-      description: 'Expert in vendor relations and operational excellence with 8 years experience.',
-      image: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=300&h=300&fit=crop&crop=face'
+      name: 'Pranav A S',
+      role: 'Frontend Developer',
+      // description: 'Expert in React and modern UI/UX design principles.',
+      image:'/images/team/pranav.jpg'
     },
     {
-      name: 'Rajesh Sharma',
-      role: 'Technology Director',
-      description: 'Tech innovator focused on creating seamless digital experiences.',
-      image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=300&fit=crop&crop=face'
+      name: 'Soham Misra',
+      // role: '',
+      // description: 'Tech innovator focused on creating seamless digital experiences.',
+      image: '/images/team/soham misra.jpg'
+    },
+    {
+      name: 'Shawn Dsouza',
+      // role: '',
+      // description: 'Tech innovator focused on creating seamless digital experiences.',
+     image:'/images/team/shawn.jpg'
     }
   ];
 
@@ -206,15 +212,15 @@ const About = () => {
         className="mb-5"
       >
         <h2 className="text-center mb-5">Meet Our Team</h2>
-        <Row>
+        <Row  className="g-3">
           {team.map((member, index) => (
-            <Col lg={4} md={6} key={index} className="mb-4">
+            <Col xl={3} lg={4} md={6} key={index}>
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: index * 0.1 }}
                 viewport={{ once: true }}
-                whileHover={{ y: -5 }}
+                whileHover={{ y: -3 }}
               >
                 <Card className="card-modern text-center h-100 border-0 shadow-sm">
                   <Card.Body className="p-4">

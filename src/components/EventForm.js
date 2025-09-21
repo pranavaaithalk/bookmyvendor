@@ -8,7 +8,7 @@ const EventForm = ({ onSubmit }) => {
   const [eventType, setEventType] = useState('');
   const [location, setLocation] = useState('');
   const [date, setDate] = useState('');
-  const [time, setTime] = useState('');
+  // const [time, setTime] = useState('');
   const [selectedServices, setSelectedServices] = useState([]);
   const [budget, setBudget] = useState('');
   const [serviceBudgets, setServiceBudgets] = useState({});
@@ -33,7 +33,7 @@ const EventForm = ({ onSubmit }) => {
       eventType,
       location,
       date,
-      time,
+      // time,
       selectedServices,
       budget,
       serviceBudgets,
@@ -86,7 +86,7 @@ const EventForm = ({ onSubmit }) => {
             </Form.Group>
           </Col>
 
-          <Col md={6}>
+          {/* <Col md={6}>
             <Form.Group className="mb-3" controlId="time">
               <Form.Label>Time</Form.Label>
               <Form.Control
@@ -96,7 +96,7 @@ const EventForm = ({ onSubmit }) => {
                 onChange={(e) => setTime(e.target.value)}
               />
             </Form.Group>
-          </Col>
+          </Col> */}
         </Row>
 
         <Form.Group className="mb-3">
