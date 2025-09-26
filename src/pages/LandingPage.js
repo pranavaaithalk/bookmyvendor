@@ -58,25 +58,25 @@ const LandingPage = () => {
 
   const testimonials = [
     {
-      name: 'Priya Sharma',
+      name: 'Rohit Sharma',
       event: 'Wedding',
       rating: 5,
       comment: 'BookMyVendor made our wedding planning so easy! Found amazing vendors and everything was perfectly coordinated.',
-      image: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=100&h=100&fit=crop&crop=face'
+      //image: ''
     },
     {
-      name: 'Rajesh Kumar',
+      name: 'Mukesh Ambani',
       event: 'Corporate Event',
       rating: 5,
       comment: 'Excellent platform for corporate events. Professional vendors and seamless booking process.',
-      image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face'
+  
     },
     {
-      name: 'Anita Patel',
+      name: 'Virat Kohli',
       event: 'Birthday Party',
       rating: 5,
-      comment: 'My daughter\'s birthday party was a huge success thanks to the wonderful vendors we found here!',
-      image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face'
+      comment: 'My daughter\'s birthday party was a huge success thanks to the wonderful vendors we found here amazing work bookmyvendor!',
+
     }
   ];
 
@@ -228,12 +228,12 @@ const LandingPage = () => {
                   <Card className="card-modern h-100 border-0 shadow-sm">
                     <Card.Body className="p-4">
                       <div className="d-flex align-items-center mb-3">
-                        <img 
+                        {/* <img 
                           src={testimonial.image} 
                           alt={testimonial.name}
                           className="rounded-circle me-3"
                           style={{ width: '50px', height: '50px', objectFit: 'cover' }}
-                        />
+                        /> */}
                         <div>
                           <h6 className="mb-0">{testimonial.name}</h6>
                           <small className="text-muted">{testimonial.event}</small>

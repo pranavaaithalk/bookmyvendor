@@ -44,7 +44,7 @@ const Gallery = () => {
       type: 'image',
       category: 'wedding',
       title: 'Romantic Garden Wedding',
-      image: 'https://images.unsplash.com/photo-1465495976277-4387d4b0e4a6?w=500&h=400&fit=crop',
+      image: 'https://images.unsplash.com/photo-1587271636175-90d58cdad458?q=80&auto=format&fit=crop',
       vendor: 'Garden Events',
       likes: 312,
       views: 1450

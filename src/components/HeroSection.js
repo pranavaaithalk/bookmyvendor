@@ -74,7 +74,7 @@ const HeroSection = () => {
                 I'm a Vendor
               </button>
             </motion.div>
-
+{/* 
             <motion.div 
               variants={itemVariants}
               className="d-flex justify-content-center align-items-center gap-4 mt-5"
@@ -82,13 +82,13 @@ const HeroSection = () => {
             >
               <div className="d-flex align-items-center gap-1">
                 <FaStar style={{ color: '#fbbf24' }} />
-                <span>1000+ Happy Clients</span>
+                <span> Happy Clients</span>
               </div>
               <div className="d-flex align-items-center gap-1">
                 <FaCalendarCheck style={{ color: '#10b981' }} />
                 <span>500+ Events Completed</span>
               </div>
-            </motion.div>
+            </motion.div> */}
           </motion.div>
         </Container>
       </div>

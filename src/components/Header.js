@@ -90,14 +90,6 @@ const Header = () => {
               </Nav.Link>
               <Nav.Link 
                 as={Link} 
-                to="/events" 
-                className={`nav-link-modern ${location.pathname === '/events' ? 'active' : ''}`}
-                style={{ color: scrolled ? '#1e293b' : 'white' }}
-              >
-                Events
-              </Nav.Link>
-              <Nav.Link 
-                as={Link} 
                 to="/gallery" 
                 className={`nav-link-modern ${location.pathname === '/gallery' ? 'active' : ''}`}
                 style={{ color: scrolled ? '#1e293b' : 'white' }}

@@ -51,7 +51,7 @@ const Contact = () => {
     {
       icon: FaMapMarkerAlt,
       title: 'Address',
-      details: ['123 Event Street', 'Mangalore, Karnataka 575001'],
+      details: ['NMAMIT', 'Nitte, Karnataka 574110'],
       color: '#ef4444'
     },
     {
@@ -274,7 +274,7 @@ const Contact = () => {
           <Card.Body className="p-0">
             <div className="map-container" style={{ height: '400px', background: '#f8f9fa' }}>
               <iframe
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d124416.84281049886!2d74.79639085!3d12.91723865!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3ba35a4c37bf488f%3A0x827bbc7a74fcfe64!2sMangalore%2C%20Karnataka!5e0!3m2!1sen!2sin!4v1635789012345!5m2!1sen!2sin"
+                src="https://www.google.com/maps?q=Nitte%2C%20Karnataka&z=14&output=embed"
                 width="100%"
                 height="400"
                 style={{ border: 0, borderRadius: 'var(--border-radius)' }}

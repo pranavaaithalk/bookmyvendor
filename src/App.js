@@ -4,6 +4,7 @@ import LandingPage from './pages/LandingPage';
 import EventCreation from './pages/EventCreation';
 import UserDashboard from './pages/UserDashboard';
 import VendorDashboard from './pages/VendorDashboard';
+import VendorOnboarding from './pages/VendorOnboarding';
 import Auth from './pages/Auth';
 import Header from './components/Header';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -20,6 +21,7 @@ function App() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/vendor-onboarding" element={<VendorOnboarding />} />
           <Route path="/event-create" element={<EventCreation />} />
           <Route path="/user-dashboard" element={
             <ProtectedRoute userType="client">
@@ -34,7 +36,7 @@ function App() {
           <Route path="/about" element={<About />} />
           <Route path="/gallery" element={<Gallery />} />
           <Route path="/contact" element={<Contact />} />
-          <Route path="/events" element={<Events />} />
+          {/** Events route removed per request */}
         </Routes>
       </div>
     </Router>

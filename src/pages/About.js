@@ -8,7 +8,7 @@ const About = () => {
     {
       icon: FaHeart,
       title: 'Passion for Excellence',
-      description: 'We are passionate about creating memorable experiences and exceeding expectations in every event.',
+      description: 'We are passionate about creating memorable experiences in every event.',
       color: '#ef4444'
     },
     {
@@ -33,38 +33,41 @@ const About = () => {
 
   const team = [
     {
-      name: 'Pranava Aithal K',
-      role: 'Backend Developer',
-      // description: 'Visionary leader with 10+ years in event management and technology.',
-      image: '/images/team/pranavaaithal.jpg'
+      name: 'Shawn Dsouza',
+      role: 'Frontend Developer',
+      // description: 
+     image:'/images/team/shawn.jpg'
     },
     {
       name: 'Pranav A S',
       role: 'Frontend Developer',
-      // description: 'Expert in React and modern UI/UX design principles.',
+      //description: 'Expert in React and modern UI/UX design principles.',
       image:'/images/team/pranav.jpg'
     },
     {
-      name: 'Soham Misra',
-      // role: '',
-      // description: 'Tech innovator focused on creating seamless digital experiences.',
-      image: '/images/team/soham misra.jpg'
+      name: 'Pranava Aithal K',
+      role: 'Backend Developer',
+      image: '/images/team/pranavaaithal.jpg'
     },
     {
-      name: 'Shawn Dsouza',
-      // role: '',
-      // description: 'Tech innovator focused on creating seamless digital experiences.',
-     image:'/images/team/shawn.jpg'
+      name: 'Soham Misra',
+      role: 'Backend Developer',
+      image: '/images/team/soham misra.jpg'
     }
   ];
 
+
   const milestones = [
-    { year: '2020', title: 'Company Founded', description: 'Started with a vision to revolutionize event planning' },
-    { year: '2021', title: '100+ Vendors', description: 'Reached our first major milestone of verified vendors' },
-    { year: '2022', title: '1000+ Events', description: 'Successfully facilitated over 1000 memorable events' },
-    { year: '2023', title: 'Multi-City Expansion', description: 'Expanded operations to 10+ major cities across India' },
-    { year: '2024', title: 'Award Recognition', description: 'Received "Best Event Platform" award from Industry Leaders' }
+    { description: "Ideation & Planning" },
+    { description: "System Design" },
+    { description: "Frontend" },
+    { description: "on progrss" },
+    { description: "..." },
+    { description: "..." },
+    { description: "..." }
   ];
+    
+
 
   return (
     <Container className="my-5">
@@ -149,19 +152,21 @@ const About = () => {
             <Row>
               <Col lg={8} className="mx-auto">
                 <p className="text-muted text-center lead">
-                  BookMyVendor was born from a personal experience of planning a wedding and facing the 
-                  challenges of finding reliable vendors, comparing prices, and coordinating multiple services. 
-                  Our founder, Pranav, realized that there had to be a better way to connect event planners 
-                  with quality vendors.
+                  BookMyVendor was born out of a personal experience at NMAMIT during a book 
+                  conference, where we faced significant challenges in finding volunteers and 
+                  coordinating multiple services. This struggle inspired our team to realize the 
+                  need for a smarter solution – a platform that seamlessly connects event planners 
+                  with reliable and quality vendors.
                 </p>
                 <p className="text-muted text-center">
-                  What started as a simple idea in 2020 has now grown into a comprehensive platform serving 
-                  thousands of clients and hundreds of vendors across multiple cities. We've facilitated 
-                  everything from intimate birthday parties to grand weddings and corporate conferences, 
-                  always with the same commitment to excellence and customer satisfaction.
+                  What started as a simple idea in 2024, when our college gave us the opportunity 
+                  to work on this as our final year project, is now evolving into a comprehensive 
+                  event management platform. Special thanks to our college NMAMIT for giving us 
+                  this opportunity and to our mentors Ashish Singh and Manjunath A S.
                 </p>
               </Col>
             </Row>
+
           </Card.Body>
         </Card>
       </motion.div>
@@ -242,7 +247,7 @@ const About = () => {
       </motion.div>
 
       {/* Timeline */}
-      <motion.div
+      {/* <motion.div
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
@@ -277,7 +282,7 @@ const About = () => {
             </div>
           </Card.Body>
         </Card>
-      </motion.div>
+      </motion.div> */}
 
       {/* CTA */}
       <motion.div

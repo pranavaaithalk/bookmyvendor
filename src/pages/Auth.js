@@ -24,12 +24,13 @@ const Auth = () => {
   });
 
   const [signupData, setSignupData] = useState({
-    name: '',
+    FirstName: '',
+    LastName: '',
     email: '',
     password: '',
     confirmPassword: '',
-    phone: '',
-    company: '' // for vendors
+    phone: ''
+    //company: '' // for vendors
   });
 
   const handleLogin = (e) => {
@@ -59,7 +60,8 @@ const Auth = () => {
     if (userType === 'client') {
       navigate('/user-dashboard');
     } else {
-      navigate('/vendor-dashboard');
+      // First-time vendors go to onboarding to fill business details
+      navigate('/vendor-onboarding');
     }
   };
 
@@ -191,26 +193,52 @@ const Auth = () => {
                     <Tab eventKey="signup" title="Sign Up">
                       <Form onSubmit={handleSignup}>
                         <Form.Group className="mb-3">
-                          <Form.Label>{userType === 'vendor' ? 'Business Name' : 'Full Name'}</Form.Label>
-                          <div className="position-relative">
-                            <FaUser 
-                              className="position-absolute" 
-                              style={{ 
-                                left: '15px', 
-                                top: '50%', 
-                                transform: 'translateY(-50%)',
-                                color: '#6c757d'
-                              }} 
-                            />
-                            <Form.Control
-                              type="text"
-                              placeholder={userType === 'vendor' ? 'Enter business name' : 'Enter your full name'}
-                              value={signupData.name}
-                              onChange={(e) => setSignupData({...signupData, name: e.target.value})}
-                              style={{ paddingLeft: '45px', borderRadius: '10px' }}
-                              required
-                            />
-                          </div>
+                          <Row>
+                            <Col md={6} className="mb-3 mb-md-0">
+                              <Form.Label>{userType === 'vendor' ? 'FirstName' : 'First Name'}</Form.Label>
+                              <div className="position-relative">
+                                <FaUser
+                                  className="position-absolute"
+                                  style={{
+                                    left: '15px',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    color: '#6c757d'
+                                  }}
+                                />
+                                <Form.Control
+                                  type="text"
+                                  placeholder={userType === 'vendor' ? 'Enter FirstName' : 'Enter your First Name'}
+                                  value={signupData.FirstName}
+                                  onChange={(e) => setSignupData({ ...signupData, FirstName: e.target.value })}
+                                  style={{ paddingLeft: '45px', borderRadius: '10px' }}
+                                  required
+                                />
+                              </div>
+                            </Col>
+                            <Col md={6}>
+                              <Form.Label>{userType === 'vendor' ? 'LastName' : 'Last Name'}</Form.Label>
+                              <div className="position-relative">
+                                <FaUser
+                                  className="position-absolute"
+                                  style={{
+                                    left: '15px',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    color: '#6c757d'
+                                  }}
+                                />
+                                <Form.Control
+                                  type="text"
+                                  placeholder={userType === 'vendor' ? 'Enter LastName' : 'Enter your Last Name'}
+                                  value={signupData.LastName}
+                                  onChange={(e) => setSignupData({ ...signupData, LastName: e.target.value })}
+                                  style={{ paddingLeft: '45px', borderRadius: '10px' }}
+                                  required
+                                />
+                              </div>
+                            </Col>
+                          </Row>
                         </Form.Group>
 
                         <Form.Group className="mb-3">
@@ -259,7 +287,7 @@ const Auth = () => {
                           </div>
                         </Form.Group>
 
-                        {userType === 'vendor' && (
+                        {/* {userType === 'vendor' && (
                           <Form.Group className="mb-3">
                             <Form.Label>Company/Business Type</Form.Label>
                             <div className="position-relative">
@@ -282,7 +310,7 @@ const Auth = () => {
                               />
                             </div>
                           </Form.Group>
-                        )}
+                        )} */}
 
                         <Form.Group className="mb-3">
                           <Form.Label>Password</Form.Label>
@@ -343,11 +371,11 @@ const Auth = () => {
                     </Tab>
                   </Tabs>
 
-                  <div className="text-center">
+                  {/* <div className="text-center">
                     <small className="text-muted">
                       By continuing, you agree to our Terms of Service and Privacy Policy
                     </small>
-                  </div>
+                  </div> */}
                 </Card.Body>
               </Card>
             </Col>

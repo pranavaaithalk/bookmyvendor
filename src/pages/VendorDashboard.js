@@ -11,8 +11,8 @@ const VendorDashboard = () => {
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
 
-  // Mock vendor data
-  const vendorProfile = {
+  // Vendor profile state (editable)
+  const [vendorProfile, setVendorProfile] = useState({
     name: "Elite Catering Services",
     category: "Catering",
     rating: 4.8,
@@ -24,7 +24,8 @@ const VendorDashboard = () => {
     description: "Premium catering services for all types of events with a focus on quality and customer satisfaction.",
     services: ["Wedding Catering", "Corporate Events", "Birthday Parties", "Anniversary Celebrations"],
     priceRange: "₹800-1500 per plate"
-  };
+  });
+  const [profileForm, setProfileForm] = useState(null);
 
   const analytics = {
     totalBookings: 45,
@@ -37,7 +38,7 @@ const VendorDashboard = () => {
     profileViews: 1250
   };
 
-  const recentBookings = [
+  const initialRecentBookings = [
     {
       id: 1,
       eventName: "Sharma Wedding",
@@ -96,8 +97,31 @@ const VendorDashboard = () => {
     }
   ];
 
+  const [recentBookings, setRecentBookings] = useState(initialRecentBookings);
+  const [statusFilter, setStatusFilter] = useState('all'); // all | pending | confirmed | completed | cancelled
+
   const handleBookingAction = (bookingId, action) => {
-    // Mock API call
+    // Map action to status change
+    const statusMap = {
+      accepted: 'confirmed',
+      declined: 'cancelled',
+      completed: 'completed'
+    };
+
+    const newStatus = statusMap[action] || null;
+
+    if (newStatus) {
+      setRecentBookings((prev) =>
+        prev.map((b) => (b.id === bookingId ? { ...b, status: newStatus } : b))
+      );
+
+      // Keep selected booking in sync if modal is open
+      if (selectedBooking && selectedBooking.id === bookingId) {
+        setSelectedBooking({ ...selectedBooking, status: newStatus });
+      }
+    }
+
+    // Feedback
     setAlertMessage(`Booking ${action} successfully!`);
     setShowAlert(true);
     setTimeout(() => setShowAlert(false), 3000);
@@ -123,6 +147,17 @@ const VendorDashboard = () => {
       default: return <FaClock />;
     }
   };
+
+  // Visible bookings based on filter
+  const visibleBookings = statusFilter === 'all' 
+    ? recentBookings 
+    : recentBookings.filter(b => b.status === statusFilter);
+
+  // Derived counts for current visible bookings
+  const pendingCount = visibleBookings.filter(b => b.status === 'pending').length;
+  const confirmedCount = visibleBookings.filter(b => b.status === 'confirmed').length;
+  const completedCount = visibleBookings.filter(b => b.status === 'completed').length;
+  const cancelledCount = visibleBookings.filter(b => b.status === 'cancelled').length;
 
   const StatCard = ({ icon: Icon, title, value, color, subtitle }) => (
     <motion.div
@@ -164,7 +199,17 @@ const VendorDashboard = () => {
             <p className="text-muted">Welcome back, {vendorProfile.name}</p>
           </div>
           <div className="d-flex gap-2">
-            <Button variant="outline-primary" onClick={() => setShowProfileModal(true)}>
+            <Button variant="outline-primary" onClick={() => { setProfileForm({
+              name: vendorProfile.name,
+              category: vendorProfile.category,
+              location: vendorProfile.location,
+              phone: vendorProfile.phone,
+              email: vendorProfile.email,
+              experience: vendorProfile.experience,
+              description: vendorProfile.description,
+              services: vendorProfile.services.join(', '),
+              priceRange: vendorProfile.priceRange
+            }); setShowProfileModal(true); }}>
               <FaEdit className="me-2" />
               Edit Profile
             </Button>
@@ -235,33 +280,33 @@ const VendorDashboard = () => {
                   <div className="mb-3">
                     <div className="d-flex justify-content-between align-items-center mb-2">
                       <span>Completed Bookings</span>
-                      <span className="fw-bold">{analytics.completedBookings}/{analytics.totalBookings}</span>
+                      <span className="fw-bold">{completedCount}/{recentBookings.length}</span>
                     </div>
                     <ProgressBar 
                       variant="success" 
-                      now={(analytics.completedBookings / analytics.totalBookings) * 100} 
+                      now={(recentBookings.length ? (completedCount / recentBookings.length) * 100 : 0)} 
                       className="mb-3"
                     />
                   </div>
                   <div className="mb-3">
                     <div className="d-flex justify-content-between align-items-center mb-2">
                       <span>Pending Bookings</span>
-                      <span className="fw-bold">{analytics.pendingBookings}/{analytics.totalBookings}</span>
+                      <span className="fw-bold">{pendingCount}/{recentBookings.length}</span>
                     </div>
                     <ProgressBar 
                       variant="warning" 
-                      now={(analytics.pendingBookings / analytics.totalBookings) * 100} 
+                      now={(recentBookings.length ? (pendingCount / recentBookings.length) * 100 : 0)} 
                       className="mb-3"
                     />
                   </div>
                   <div>
                     <div className="d-flex justify-content-between align-items-center mb-2">
                       <span>Cancelled Bookings</span>
-                      <span className="fw-bold">{analytics.cancelledBookings}/{analytics.totalBookings}</span>
+                      <span className="fw-bold">{cancelledCount}/{recentBookings.length}</span>
                     </div>
                     <ProgressBar 
                       variant="danger" 
-                      now={(analytics.cancelledBookings / analytics.totalBookings) * 100} 
+                      now={(recentBookings.length ? (cancelledCount / recentBookings.length) * 100 : 0)} 
                     />
                   </div>
                 </Card.Body>
@@ -302,9 +347,21 @@ const VendorDashboard = () => {
             <Card.Header className="bg-transparent border-0">
               <div className="d-flex justify-content-between align-items-center">
                 <h5 className="mb-0">Recent Bookings</h5>
-                <div className="d-flex gap-2">
-                  <Badge bg="warning">{analytics.pendingBookings} Pending</Badge>
-                  <Badge bg="success">{analytics.completedBookings} Completed</Badge>
+                <div className="d-flex align-items-center gap-2">
+                  <Form.Select
+                    size="sm"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    style={{ width: '160px' }}
+                  >
+                    <option value="all">All</option>
+                    <option value="pending">Pending</option>
+                    <option value="confirmed">Confirmed</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
+                  </Form.Select>
+                  <Badge bg="warning">{pendingCount} Pending</Badge>
+                  <Badge bg="success">{confirmedCount} Confirmed</Badge>
                 </div>
               </div>
             </Card.Header>
@@ -322,7 +379,7 @@ const VendorDashboard = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {recentBookings.map((booking) => (
+                  {visibleBookings.map((booking) => (
                     <tr key={booking.id}>
                       <td>
                         <div>
@@ -451,7 +508,17 @@ const VendorDashboard = () => {
                     <strong>Price Range:</strong>
                     <p className="text-success">{vendorProfile.priceRange}</p>
                   </div>
-                  <Button variant="primary" className="w-100 btn-modern">
+                  <Button variant="primary" className="w-100 btn-modern" onClick={() => { setProfileForm({
+                    name: vendorProfile.name,
+                    category: vendorProfile.category,
+                    location: vendorProfile.location,
+                    phone: vendorProfile.phone,
+                    email: vendorProfile.email,
+                    experience: vendorProfile.experience,
+                    description: vendorProfile.description,
+                    services: vendorProfile.services.join(', '),
+                    priceRange: vendorProfile.priceRange
+                  }); setShowProfileModal(true); }}>
                     <FaEdit className="me-2" />
                     Update Profile
                   </Button>
@@ -510,6 +577,138 @@ const VendorDashboard = () => {
               </Button>
             </>
           )}
+        </Modal.Footer>
+      </Modal>
+
+      {/* Edit Profile Modal */}
+      <Modal show={showProfileModal} onHide={() => setShowProfileModal(false)} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>Edit Profile</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {profileForm && (
+            <Form>
+              <Row>
+                <Col md={6} className="mb-3">
+                  <Form.Group>
+                    <Form.Label>Business Name</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={profileForm.name}
+                      onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={6} className="mb-3">
+                  <Form.Group>
+                    <Form.Label>Category</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={profileForm.category}
+                      onChange={(e) => setProfileForm({ ...profileForm, category: e.target.value })}
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+              <Row>
+                <Col md={6} className="mb-3">
+                  <Form.Group>
+                    <Form.Label>Location</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={profileForm.location}
+                      onChange={(e) => setProfileForm({ ...profileForm, location: e.target.value })}
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={3} className="mb-3">
+                  <Form.Group>
+                    <Form.Label>Phone</Form.Label>
+                    <Form.Control
+                      type="tel"
+                      value={profileForm.phone}
+                      onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={3} className="mb-3">
+                  <Form.Group>
+                    <Form.Label>Email</Form.Label>
+                    <Form.Control
+                      type="email"
+                      value={profileForm.email}
+                      onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+              <Row>
+                <Col md={6} className="mb-3">
+                  <Form.Group>
+                    <Form.Label>Experience</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={profileForm.experience}
+                      onChange={(e) => setProfileForm({ ...profileForm, experience: e.target.value })}
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={6} className="mb-3">
+                  <Form.Group>
+                    <Form.Label>Price Range</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={profileForm.priceRange}
+                      onChange={(e) => setProfileForm({ ...profileForm, priceRange: e.target.value })}
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+              <Form.Group className="mb-3">
+                <Form.Label>Description</Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={3}
+                  value={profileForm.description}
+                  onChange={(e) => setProfileForm({ ...profileForm, description: e.target.value })}
+                />
+              </Form.Group>
+              <Form.Group className="mb-3">
+                <Form.Label>Services (comma separated)</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={profileForm.services}
+                  onChange={(e) => setProfileForm({ ...profileForm, services: e.target.value })}
+                />
+              </Form.Group>
+            </Form>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="outline-secondary" onClick={() => setShowProfileModal(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            onClick={() => {
+              if (!profileForm) return;
+              const updated = {
+                ...vendorProfile,
+                ...profileForm,
+                services: (profileForm.services || '')
+                  .split(',')
+                  .map(s => s.trim())
+                  .filter(Boolean)
+              };
+              setVendorProfile(updated);
+              setShowProfileModal(false);
+              setAlertMessage('Profile updated successfully!');
+              setShowAlert(true);
+              setTimeout(() => setShowAlert(false), 3000);
+            }}
+          >
+            Save Changes
+          </Button>
         </Modal.Footer>
       </Modal>
 
