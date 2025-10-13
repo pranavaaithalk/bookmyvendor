@@ -1,0 +1,78 @@
+package Final.Year.Project.bmv.controller;
+
+import Final.Year.Project.bmv.entity.Users;
+import Final.Year.Project.bmv.service.UsersService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/users")
+public class UsersController {
+
+    @Autowired
+    private UsersService usersService;
+
+    // Login API --> expects map with keys: "email", "passwordHash"
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestParam Map<String, String> map) {
+        // authentication logic placeholder
+        String email = map.get("email");
+        String passwordHash = map.get("passwordHash");
+        List<Users> users = usersService.getAllUsers();
+        for (Users user : users) {
+            if (user.getEmail().equals(email) && user.getPasswordHash().equals(passwordHash)) {
+                return ResponseEntity.ok(user);
+            }
+        }
+        return ResponseEntity.status(401).body("Invalid credentials");
+    }
+
+    // Signup API --> map for user fields like email, passwordHash, ...
+    @PostMapping("/signup")
+    public ResponseEntity<Users> signup(@RequestParam Map<String, String> map) {
+        Users user = Users.builder()
+                .email(map.get("email"))
+                .passwordHash(map.get("passwordHash"))
+                .firstName(map.get("firstName"))
+                .lastName(map.get("lastName"))
+                .phone(map.get("phone"))
+                .userType(Users.UserType.valueOf(map.get("userType")))
+                .build();
+        return ResponseEntity.ok(usersService.createUser(user));
+    }
+
+    // Update profile --> map with user fields to update
+    @PutMapping("/{userId}")
+    public ResponseEntity<Users> updateUser(@PathVariable Long userId, @RequestParam Map<String, String> map) {
+        Users user = usersService.getUserById(userId);
+        if (map.containsKey("email")) user.setEmail(map.get("email"));
+        if (map.containsKey("passwordHash")) user.setPasswordHash(map.get("passwordHash"));
+        if (map.containsKey("firstName")) user.setFirstName(map.get("firstName"));
+        if (map.containsKey("lastName")) user.setLastName(map.get("lastName"));
+        if (map.containsKey("phone")) user.setPhone(map.get("phone"));
+        if (map.containsKey("profileImageUrl")) user.setProfileImageUrl(map.get("profileImageUrl"));
+        if (map.containsKey("userType")) user.setUserType(Users.UserType.valueOf(map.get("userType")));
+        user.setUpdatedAt(java.time.LocalDateTime.now());
+        return ResponseEntity.ok(usersService.updateUser(userId, user));
+    }
+
+    @GetMapping
+    public ResponseEntity<List<Users>> getAllUsers() {
+        return ResponseEntity.ok(usersService.getAllUsers());
+    }
+
+    @GetMapping("/{userId}")
+    public ResponseEntity<Users> getUserById(@PathVariable Long userId) {
+        return ResponseEntity.ok(usersService.getUserById(userId));
+    }
+
+    @DeleteMapping("/{userId}")
+    public ResponseEntity<Void> deleteUser(@PathVariable Long userId) {
+        usersService.deleteUser(userId);
+        return ResponseEntity.noContent().build();
+    }
+}

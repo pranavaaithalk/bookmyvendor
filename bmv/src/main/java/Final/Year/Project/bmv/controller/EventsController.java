@@ -1,0 +1,197 @@
+package Final.Year.Project.bmv.controller;
+
+import Final.Year.Project.bmv.entity.*;
+import Final.Year.Project.bmv.service.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.*;
+import java.util.stream.Collectors;
+
+@RestController
+@RequestMapping("/api/events")
+public class EventsController {
+
+    @Autowired private EventsService eventsService;
+    @Autowired private ServicesService servicesService;
+    @Autowired private VendorServiceService vendorServiceService;
+    @Autowired private VendorProfileService vendorProfileService;
+    @Autowired private ServiceRequestService serviceRequestService;
+    @Autowired private VendorServiceRequestService vendorServiceRequestService;
+    @Autowired private NotificationsService notificationsService;
+
+    // Create new event [expect: clientId, eventType, title, description, eventDate, startTime, endTime, guestCount, venueAddress]
+    @PostMapping("/create")
+    public ResponseEntity<Events> createEvent(@RequestParam Map<String, String> map) {
+        Events event = Events.builder()
+                .eventType(map.get("eventType"))
+                .title(map.get("title"))
+                .description(map.get("description"))
+                .eventDate(LocalDate.parse(map.get("eventDate")))
+                .startTime(map.containsKey("startTime") ? LocalTime.parse(map.get("startTime")) : null)
+                .endTime(map.containsKey("endTime") ? LocalTime.parse(map.get("endTime")) : null)
+                .guestCount(map.containsKey("guestCount") ? Integer.parseInt(map.get("guestCount")) : null)
+                .venueAddress(map.get("venueAddress"))
+                .status(Events.Status.DRAFT)
+                .build();
+        Events created = eventsService.createEvents(event);
+        return ResponseEntity.ok(created);
+    }
+
+    // List available services for event configuration
+    @GetMapping("/services")
+    public ResponseEntity<List<Services>> getAvailableServices() {
+        return ResponseEntity.ok(servicesService.getAllServices());
+    }
+
+    // Get top vendors for a given service at event date/location [expect: serviceId, eventDate, city, guestCount]
+    @GetMapping("/top-vendors")
+    public ResponseEntity<List<VendorService>> getTopVendorsForService(@RequestParam Map<String, String> map) {
+        Long serviceId = Long.parseLong(map.get("serviceId"));
+        String city = map.get("city");
+        LocalDate eventDate = LocalDate.parse(map.get("eventDate"));
+        Integer guestCount = Integer.parseInt(map.get("guestCount"));
+
+        // Filter VendorService by serviceId and vendor city and availability (simulate review/availability filtering)
+        List<VendorService> filtered = vendorServiceService.getAllVendorServices().stream()
+                .filter(vs -> vs.getService().getServiceId().equals(serviceId)
+                        && vs.getVendor().getCity().equalsIgnoreCase(city)
+                        && vs.isAvailable()
+                        && (vs.getMinGuests() == null || guestCount >= vs.getMinGuests())
+                        && (vs.getMaxGuests() == null || guestCount <= vs.getMaxGuests()))
+                .sorted((a, b) -> b.getVendor().getRating().compareTo(a.getVendor().getRating()))
+                .limit(5)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(filtered);
+    }
+
+    // Client chooses a vendor for a service; service request is sent [expect: eventId, serviceId, vendorServiceId, budgetMin, budgetMax, guestCount, requirements, eventDate]
+    @PostMapping("/create-service-request")
+    public ResponseEntity<ServiceRequest> createServiceRequest(@RequestParam Map<String, String> map) {
+        Events event = eventsService.getEventsById(Long.parseLong(map.get("eventId")));
+        Services service = servicesService.getServiceById(Long.parseLong(map.get("serviceId")));
+        VendorService vendorService = vendorServiceService.getVendorServiceById(Long.parseLong(map.get("vendorServiceId")));
+
+        ServiceRequest sr = ServiceRequest.builder()
+                .event(event)
+                .service(service)
+                .budgetMin(new java.math.BigDecimal(map.getOrDefault("budgetMin", "0")))
+                .budgetMax(new java.math.BigDecimal(map.getOrDefault("budgetMax", "0")))
+                .guestCount(map.containsKey("guestCount") ? Integer.parseInt(map.get("guestCount")) : null)
+                .eventDate(LocalDate.parse(map.get("eventDate")))
+                .requirements(map.get("requirements"))
+                .status(ServiceRequest.Status.OPEN)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+        sr = serviceRequestService.createServiceRequest(sr);
+
+        VendorProfile vendor = vendorService.getVendor();
+        VendorServiceRequest vsr = VendorServiceRequest.builder()
+                .serviceRequest(sr)
+                .vendor(vendor)
+                .proposedAmount(sr.getBudgetMax())
+                .message("Service request for " + service.getName())
+                .status(VendorServiceRequest.Status.PENDING)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+        vendorServiceRequestService.createVendorServiceRequest(vsr);
+
+        return ResponseEntity.ok(sr);
+    }
+
+    // Vendor responds to a service request [expect: vendorRequestId, response (ACCEPTED/REJECTED)]
+    @PostMapping("/respond-service-request")
+    public ResponseEntity<String> respondServiceRequest(@RequestParam Map<String, String> map) {
+        VendorServiceRequest vsr = vendorServiceRequestService.getVendorServiceRequestById(
+                Long.parseLong(map.get("vendorRequestId")));
+        vsr.setStatus(VendorServiceRequest.Status.valueOf(map.get("response").toUpperCase()));
+        vsr.setUpdatedAt(LocalDateTime.now());
+        vendorServiceRequestService.updateVendorServiceRequest(vsr.getVendorRequestId(), vsr);
+
+        // If declined, notify client
+        if (vsr.getStatus() == VendorServiceRequest.Status.REJECTED) {
+            Events event = vsr.getServiceRequest().getEvent();
+            Notifications notification = Notifications.builder()
+                    .user(event.getClient())
+                    .title("Vendor declined for service")
+                    .message("Choose another vendor for " + event.getTitle())
+                    .notificationType("VENDOR_DECLINE")
+                    .referenceId(event.getEventId())
+                    .isRead(false)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            notificationsService.createNotification(notification);
+        }
+        return ResponseEntity.ok("Vendor response updated");
+    }
+
+    // Confirm event after all required services confirmed [expect: eventId]
+    @PostMapping("/confirm")
+    public ResponseEntity<String> confirmEvent(@RequestParam Map<String, String> map) {
+        Long eventId = Long.parseLong(map.get("eventId"));
+        Events event = eventsService.getEventsById(eventId);
+
+        List<ServiceRequest> requests = serviceRequestService.getAllServiceRequests().stream()
+                .filter(req -> req.getEvent().getEventId().equals(eventId))
+                .collect(Collectors.toList());
+
+        boolean allConfirmed = true;
+        for (ServiceRequest req : requests) {
+            boolean accepted = vendorServiceRequestService.getAllVendorServiceRequests().stream()
+                    .anyMatch(vreq -> vreq.getServiceRequest().getRequestId().equals(req.getRequestId())
+                            && vreq.getStatus() == VendorServiceRequest.Status.ACCEPTED);
+            if (!accepted) {
+                allConfirmed = false;
+                break;
+            }
+        }
+        if (allConfirmed) {
+            event.setStatus(Events.Status.CONFIRMED);
+            event.setUpdatedAt(LocalDateTime.now());
+            eventsService.updateEvents(eventId, event);
+            return ResponseEntity.ok("Event confirmed");
+        } else {
+            return ResponseEntity.badRequest().body("Some services not yet confirmed by vendors");
+        }
+    }
+
+    // Additional basic CRUD endpoints
+    @GetMapping
+    public ResponseEntity<List<Events>> getAllEvents() {
+        return ResponseEntity.ok(eventsService.getAllEvents());
+    }
+
+    @GetMapping("/{eventId}")
+    public ResponseEntity<Events> getEventById(@PathVariable Long eventId) {
+        return ResponseEntity.ok(eventsService.getEventsById(eventId));
+    }
+
+    @PutMapping("/{eventId}")
+    public ResponseEntity<Events> updateEvent(@PathVariable Long eventId, @RequestParam Map<String, String> map) {
+        Events existing = eventsService.getEventsById(eventId);
+        if (map.containsKey("eventType")) existing.setEventType(map.get("eventType"));
+        if (map.containsKey("title")) existing.setTitle(map.get("title"));
+        if (map.containsKey("description")) existing.setDescription(map.get("description"));
+        if (map.containsKey("eventDate")) existing.setEventDate(LocalDate.parse(map.get("eventDate")));
+        if (map.containsKey("startTime")) existing.setStartTime(LocalTime.parse(map.get("startTime")));
+        if (map.containsKey("endTime")) existing.setEndTime(LocalTime.parse(map.get("endTime")));
+        if (map.containsKey("guestCount")) existing.setGuestCount(Integer.parseInt(map.get("guestCount")));
+        if (map.containsKey("venueAddress")) existing.setVenueAddress(map.get("venueAddress"));
+        if (map.containsKey("status")) existing.setStatus(Events.Status.valueOf(map.get("status").toUpperCase()));
+        existing.setUpdatedAt(LocalDateTime.now());
+        Events updatedEvent = eventsService.updateEvents(eventId, existing);
+        return ResponseEntity.ok(updatedEvent);
+    }
+
+    @DeleteMapping("/{eventId}")
+    public ResponseEntity<Void> deleteEvent(@PathVariable Long eventId) {
+        eventsService.deleteEvents(eventId);
+        return ResponseEntity.noContent().build();
+    }
+}
