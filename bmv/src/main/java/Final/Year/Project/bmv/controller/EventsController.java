@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -23,6 +24,7 @@ public class EventsController {
     @Autowired private ServiceRequestService serviceRequestService;
     @Autowired private VendorServiceRequestService vendorServiceRequestService;
     @Autowired private NotificationsService notificationsService;
+    @Autowired private BookingService bookingsService;
 
     // Create new event [expect: clientId, eventType, title, description, eventDate, startTime, endTime, guestCount, venueAddress]
     @PostMapping("/create")
@@ -106,6 +108,7 @@ public class EventsController {
     }
 
     // Vendor responds to a service request [expect: vendorRequestId, response (ACCEPTED/REJECTED)]
+    // Vendor responds to a service request [expect: vendorRequestId, response (ACCEPTED/REJECTED)]
     @PostMapping("/respond-service-request")
     public ResponseEntity<String> respondServiceRequest(@RequestParam Map<String, String> map) {
         VendorServiceRequest vsr = vendorServiceRequestService.getVendorServiceRequestById(
@@ -127,6 +130,29 @@ public class EventsController {
                     .createdAt(LocalDateTime.now())
                     .build();
             notificationsService.createNotification(notification);
+            return ResponseEntity.ok("Vendor response updated");
+        }
+
+        // If accepted, CREATE BOOKING record
+        if (vsr.getStatus() == VendorServiceRequest.Status.ACCEPTED) {
+            Events event = vsr.getServiceRequest().getEvent();
+            VendorService vendorService = vendorServiceService.getVendorServiceById(vsr.getServiceRequest().getService().getServiceId()); // Vendor service matching requested service
+            VendorProfile vendor = vsr.getVendor();
+            Bookings booking = Bookings.builder()
+                    .event(event)
+                    .vendorService(vendorService)
+                    .vendor(vendor)
+                    .bookingDate(LocalDateTime.now())
+                    .bookingStatus(Bookings.BookingStatus.CONFIRMED)
+                    .amount(vsr.getProposedAmount() != null ? vsr.getProposedAmount() : BigDecimal.ZERO)
+                    .paymentStatus(Bookings.PaymentStatus.PENDING)
+                    .notes("Booking created after vendor confirmation")
+                    .createdAt(LocalDateTime.now())
+                    .updatedAt(LocalDateTime.now())
+                    .build();
+            bookingsService.createBookings(booking);
+
+            return ResponseEntity.ok("Vendor accepted and booking confirmed.");
         }
         return ResponseEntity.ok("Vendor response updated");
     }
