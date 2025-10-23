@@ -1,6 +1,12 @@
 import axios from 'axios';
 
-const BASE_URL = 'http://localhost:8080/api'; // Change when backend ready
+const BASE_URL = 'http://localhost:8081/api'; // Change when backend ready
+
+export const UserLogin = (loginData) =>
+  axios.post(`${BASE_URL}/users/login`, loginData);
+
+export const UserRegister = (registerData) =>
+  axios.post(`${BASE_URL}/users/signup`, registerData);
 
 export const fetchVendorsByService = (location, service, budget) =>
   axios.get(`${BASE_URL}/vendors`, { params: { location, service, budget } });

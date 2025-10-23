@@ -3,10 +3,11 @@ import { Container, Row, Col, Card, Form, Button, Tab, Tabs } from 'react-bootst
 import { motion } from 'framer-motion';
 import { FaUser, FaStore, FaEnvelope, FaLock, FaPhone, FaBuilding } from 'react-icons/fa';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { UserLogin, UserRegister } from '../services/api';
 
 const Auth = () => {
   const [activeTab, setActiveTab] = useState('login');
-  const [userType, setUserType] = useState('client');
+  const [_userType, set_userType] = useState('client');
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   
@@ -14,54 +15,66 @@ const Auth = () => {
   React.useEffect(() => {
     const type = searchParams.get('type');
     if (type) {
-      setUserType(type);
+      set_userType(type);
     }
   }, [searchParams]);
 
   const [loginData, setLoginData] = useState({
     email: '',
-    password: ''
+    passwordHash: ''
   });
 
   const [signupData, setSignupData] = useState({
-    FirstName: '',
-    LastName: '',
+    firstName: '',
+    lastName: '',
     email: '',
-    password: '',
+    passwordHash: '',
     confirmPassword: '',
-    phone: ''
-    //company: '' // for vendors
+    phone: '',
+    userType: ''
   });
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    // Mock authentication - in real app, this would call an API
-    console.log('Login attempt:', { ...loginData, userType });
+    try{
+      const response = await UserLogin(loginData);
     
-    // Simulate successful login and redirect to appropriate dashboard
-    if (userType === 'client') {
-      navigate('/user-dashboard');
-    } else {
-      navigate('/vendor-dashboard');
+      if (response.status === 200 && response.data.userType === 'client') {
+        navigate('/user-dashboard');
+      } else if(response.status === 200 && response.data.userType === 'vendor') {
+        navigate('/vendor-dashboard');
+      }
+    }catch(error){
+      console.log(error);
     }
   };
 
-  const handleSignup = (e) => {
+  const handlePass = () =>{
+    setLoginData({
+      email: 'e@e.c',
+      passwordHash: 'r'
+    });
+  };
+
+  const handleSignup = async(e) => {
     e.preventDefault();
-    if (signupData.password !== signupData.confirmPassword) {
+    if (signupData.passwordHash !== signupData.confirmPassword) {
       alert('Passwords do not match!');
       return;
     }
     
-    // Mock registration - in real app, this would call an API
-    console.log('Signup attempt:', { ...signupData, userType });
+    try{
+      signupData.userType = _userType;
+      const response = await UserRegister(signupData);
     
-    // Simulate successful registration and redirect to appropriate dashboard
-    if (userType === 'client') {
-      navigate('/user-dashboard');
-    } else {
-      // First-time vendors go to onboarding to fill business details
-      navigate('/vendor-onboarding');
+      if (response.status === 200 && response.data.userType === 'client') {
+        navigate('/user-dashboard');
+      } else if(response.status === 200 && response.data.userType === 'vendor') {
+        // First-time vendors go to onboarding to fill business details
+        navigate('/vendor-onboarding');
+      }
+    }catch(error){
+      console.log(error);
     }
   };
 
@@ -96,7 +109,7 @@ const Auth = () => {
                       Welcome to BookMyVendor
                     </h2>
                     <p className="text-muted">
-                      {userType === 'client' ? 'Find and book amazing vendors' : 'Grow your business with us'}
+                      {_userType === 'client' ? 'Find and book amazing vendors' : 'Grow your business with us'}
                     </p>
                   </div>
 
@@ -104,8 +117,8 @@ const Auth = () => {
                   <div className="mb-4">
                     <div className="d-flex justify-content-center gap-3">
                       <Button
-                        variant={userType === 'client' ? 'primary' : 'outline-primary'}
-                        onClick={() => setUserType('client')}
+                        variant={_userType === 'client' ? 'primary' : 'outline-primary'}
+                        onClick={() => set_userType('client')}
                         className="d-flex align-items-center gap-2 px-4"
                         style={{ borderRadius: '25px' }}
                       >
@@ -113,8 +126,8 @@ const Auth = () => {
                         I'm a Client
                       </Button>
                       <Button
-                        variant={userType === 'vendor' ? 'primary' : 'outline-primary'}
-                        onClick={() => setUserType('vendor')}
+                        variant={_userType === 'vendor' ? 'primary' : 'outline-primary'}
+                        onClick={() => set_userType('vendor')}
                         className="d-flex align-items-center gap-2 px-4"
                         style={{ borderRadius: '25px' }}
                       >
@@ -170,13 +183,14 @@ const Auth = () => {
                             <Form.Control
                               type="password"
                               placeholder="Enter your password"
-                              value={loginData.password}
-                              onChange={(e) => setLoginData({...loginData, password: e.target.value})}
+                              value={loginData.passwordHash}
+                              onChange={(e) => setLoginData({...loginData, passwordHash: e.target.value})}
                               style={{ paddingLeft: '45px', borderRadius: '10px' }}
                               required
                             />
                           </div>
                         </Form.Group>
+                        <Button onClick={handlePass} className="w-100 mb-3">Fill</Button>
 
                         <Button
                           type="submit"
@@ -185,7 +199,7 @@ const Auth = () => {
                           className="w-100 mb-3"
                           style={{ borderRadius: '10px' }}
                         >
-                          Login as {userType === 'client' ? 'Client' : 'Vendor'}
+                          Login as {_userType === 'client' ? 'Client' : 'Vendor'}
                         </Button>
                       </Form>
                     </Tab>
@@ -195,7 +209,7 @@ const Auth = () => {
                         <Form.Group className="mb-3">
                           <Row>
                             <Col md={6} className="mb-3 mb-md-0">
-                              <Form.Label>{userType === 'vendor' ? 'FirstName' : 'First Name'}</Form.Label>
+                              <Form.Label>{_userType === 'vendor' ? 'FirstName' : 'First Name'}</Form.Label>
                               <div className="position-relative">
                                 <FaUser
                                   className="position-absolute"
@@ -208,16 +222,16 @@ const Auth = () => {
                                 />
                                 <Form.Control
                                   type="text"
-                                  placeholder={userType === 'vendor' ? 'Enter FirstName' : 'Enter your First Name'}
-                                  value={signupData.FirstName}
-                                  onChange={(e) => setSignupData({ ...signupData, FirstName: e.target.value })}
+                                  placeholder={_userType === 'vendor' ? 'Enter FirstName' : 'Enter your First Name'}
+                                  value={signupData.firstName}
+                                  onChange={(e) => setSignupData({ ...signupData, firstName: e.target.value })}
                                   style={{ paddingLeft: '45px', borderRadius: '10px' }}
                                   required
                                 />
                               </div>
                             </Col>
                             <Col md={6}>
-                              <Form.Label>{userType === 'vendor' ? 'LastName' : 'Last Name'}</Form.Label>
+                              <Form.Label>{_userType === 'vendor' ? 'LastName' : 'Last Name'}</Form.Label>
                               <div className="position-relative">
                                 <FaUser
                                   className="position-absolute"
@@ -230,9 +244,9 @@ const Auth = () => {
                                 />
                                 <Form.Control
                                   type="text"
-                                  placeholder={userType === 'vendor' ? 'Enter LastName' : 'Enter your Last Name'}
-                                  value={signupData.LastName}
-                                  onChange={(e) => setSignupData({ ...signupData, LastName: e.target.value })}
+                                  placeholder={_userType === 'vendor' ? 'Enter LastName' : 'Enter your Last Name'}
+                                  value={signupData.lastName}
+                                  onChange={(e) => setSignupData({ ...signupData, lastName: e.target.value })}
                                   style={{ paddingLeft: '45px', borderRadius: '10px' }}
                                   required
                                 />
@@ -287,7 +301,7 @@ const Auth = () => {
                           </div>
                         </Form.Group>
 
-                        {/* {userType === 'vendor' && (
+                        {/* {_userType === 'vendor' && (
                           <Form.Group className="mb-3">
                             <Form.Label>Company/Business Type</Form.Label>
                             <div className="position-relative">
@@ -327,8 +341,8 @@ const Auth = () => {
                             <Form.Control
                               type="password"
                               placeholder="Create a password"
-                              value={signupData.password}
-                              onChange={(e) => setSignupData({...signupData, password: e.target.value})}
+                              value={signupData.passwordHash}
+                              onChange={(e) => setSignupData({...signupData, passwordHash: e.target.value})}
                               style={{ paddingLeft: '45px', borderRadius: '10px' }}
                               required
                             />
@@ -365,7 +379,7 @@ const Auth = () => {
                           className="w-100 mb-3"
                           style={{ borderRadius: '10px' }}
                         >
-                          Sign Up as {userType === 'client' ? 'Client' : 'Vendor'}
+                          Sign Up as {_userType === 'client' ? 'Client' : 'Vendor'}
                         </Button>
                       </Form>
                     </Tab>
