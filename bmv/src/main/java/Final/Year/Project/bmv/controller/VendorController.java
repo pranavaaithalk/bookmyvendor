@@ -13,6 +13,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/vendors")
+@CrossOrigin(origins = "http://localhost:3000")
 public class VendorController {
 
     @Autowired
@@ -23,14 +24,14 @@ public class VendorController {
 
     // 1. Get list of new service requests for vendor
     @GetMapping("/requests/new")
-    public ResponseEntity<List<VendorServiceRequest>> showNewRequests(@RequestParam Long vendorId) {
+    public ResponseEntity<List<VendorServiceRequest>> showNewRequests(@RequestBody Long vendorId) {
         List<VendorServiceRequest> newRequests = vendorServiceRequestService.getNewRequestsForVendor(vendorId);
         return ResponseEntity.ok(newRequests);
     }
 
     // 2. Accept a service request
     @PostMapping("/requests/{requestId}/accept")
-    public ResponseEntity<String> acceptRequest(@PathVariable Long requestId, @RequestParam Long vendorId) {
+    public ResponseEntity<String> acceptRequest(@PathVariable Long requestId, @RequestBody Long vendorId) {
         boolean success = vendorServiceRequestService.acceptRequest(requestId, vendorId);
         if (success) {
             return ResponseEntity.ok("Service request accepted");
@@ -41,7 +42,7 @@ public class VendorController {
 
     // 3. Decline a service request
     @PostMapping("/requests/{requestId}/decline")
-    public ResponseEntity<String> declineRequest(@PathVariable Long requestId, @RequestParam Long vendorId) {
+    public ResponseEntity<String> declineRequest(@PathVariable Long requestId, @RequestBody Long vendorId) {
         boolean success = vendorServiceRequestService.declineRequest(requestId, vendorId);
         if (success) {
             return ResponseEntity.ok("Service request declined");
@@ -55,7 +56,7 @@ public class VendorController {
     // "userId", "businessName", "businessDescription", "businessAddress", "city", "state", "country",
     // "pincode", "businessPhone", "businessEmail", "businessLogoUrl", "yearsOfExperience", "isFeatured", "isApproved", "rating", "totalReviews"
     @PostMapping("/profile")
-    public ResponseEntity<VendorProfile> createVendorProfile(@RequestParam Map<String, String> map) {
+    public ResponseEntity<VendorProfile> createVendorProfile(@RequestBody Map<String, String> map) {
         // Extract and build VendorProfile from map
         VendorProfile profile = VendorProfile.builder()
                 // You need to fetch associated User entity by userId separately and set here
@@ -84,7 +85,7 @@ public class VendorController {
     // Update Vendor Profile
     // Expects vendorId path param and map with fields to update like create API
     @PutMapping("/profile/{vendorId}")
-    public ResponseEntity<VendorProfile> updateVendorProfile(@PathVariable Long vendorId, @RequestParam Map<String, String> map) {
+    public ResponseEntity<VendorProfile> updateVendorProfile(@PathVariable Long vendorId, @RequestBody Map<String, String> map) {
         VendorProfile existing = vendorProfileService.getVendorProfileById(vendorId);
         if (map.containsKey("businessName")) existing.setBusinessName(map.get("businessName"));
         if (map.containsKey("businessDescription")) existing.setBusinessDescription(map.get("businessDescription"));

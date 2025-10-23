@@ -15,6 +15,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/events")
+@CrossOrigin(origins = "http://localhost:3000")
 public class EventsController {
 
     @Autowired private EventsService eventsService;
@@ -28,7 +29,7 @@ public class EventsController {
 
     // Create new event [expect: clientId, eventType, title, description, eventDate, startTime, endTime, guestCount, venueAddress]
     @PostMapping("/create")
-    public ResponseEntity<Events> createEvent(@RequestParam Map<String, String> map) {
+    public ResponseEntity<Events> createEvent(@RequestBody Map<String, String> map) {
         Events event = Events.builder()
                 .eventType(map.get("eventType"))
                 .title(map.get("title"))
@@ -52,7 +53,7 @@ public class EventsController {
 
     // Get top vendors for a given service at event date/location [expect: serviceId, eventDate, city, guestCount]
     @GetMapping("/top-vendors")
-    public ResponseEntity<List<VendorService>> getTopVendorsForService(@RequestParam Map<String, String> map) {
+    public ResponseEntity<List<VendorService>> getTopVendorsForService(@RequestBody Map<String, String> map) {
         Long serviceId = Long.parseLong(map.get("serviceId"));
         String city = map.get("city");
         LocalDate eventDate = LocalDate.parse(map.get("eventDate"));
@@ -73,7 +74,7 @@ public class EventsController {
 
     // Client chooses a vendor for a service; service request is sent [expect: eventId, serviceId, vendorServiceId, budgetMin, budgetMax, guestCount, requirements, eventDate]
     @PostMapping("/create-service-request")
-    public ResponseEntity<ServiceRequest> createServiceRequest(@RequestParam Map<String, String> map) {
+    public ResponseEntity<ServiceRequest> createServiceRequest(@RequestBody Map<String, String> map) {
         Events event = eventsService.getEventsById(Long.parseLong(map.get("eventId")));
         Services service = servicesService.getServiceById(Long.parseLong(map.get("serviceId")));
         VendorService vendorService = vendorServiceService.getVendorServiceById(Long.parseLong(map.get("vendorServiceId")));
@@ -110,7 +111,7 @@ public class EventsController {
     // Vendor responds to a service request [expect: vendorRequestId, response (ACCEPTED/REJECTED)]
     // Vendor responds to a service request [expect: vendorRequestId, response (ACCEPTED/REJECTED)]
     @PostMapping("/respond-service-request")
-    public ResponseEntity<String> respondServiceRequest(@RequestParam Map<String, String> map) {
+    public ResponseEntity<String> respondServiceRequest(@RequestBody Map<String, String> map) {
         VendorServiceRequest vsr = vendorServiceRequestService.getVendorServiceRequestById(
                 Long.parseLong(map.get("vendorRequestId")));
         vsr.setStatus(VendorServiceRequest.Status.valueOf(map.get("response").toUpperCase()));
@@ -159,7 +160,7 @@ public class EventsController {
 
     // Confirm event after all required services confirmed [expect: eventId]
     @PostMapping("/confirm")
-    public ResponseEntity<String> confirmEvent(@RequestParam Map<String, String> map) {
+    public ResponseEntity<String> confirmEvent(@RequestBody Map<String, String> map) {
         Long eventId = Long.parseLong(map.get("eventId"));
         Events event = eventsService.getEventsById(eventId);
 
@@ -199,7 +200,7 @@ public class EventsController {
     }
 
     @PutMapping("/{eventId}")
-    public ResponseEntity<Events> updateEvent(@PathVariable Long eventId, @RequestParam Map<String, String> map) {
+    public ResponseEntity<Events> updateEvent(@PathVariable Long eventId, @RequestBody Map<String, String> map) {
         Events existing = eventsService.getEventsById(eventId);
         if (map.containsKey("eventType")) existing.setEventType(map.get("eventType"));
         if (map.containsKey("title")) existing.setTitle(map.get("title"));

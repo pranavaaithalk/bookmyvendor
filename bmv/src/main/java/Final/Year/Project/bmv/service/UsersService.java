@@ -26,6 +26,11 @@ public class UsersService {
                 .orElseThrow(() -> new RuntimeException("User not found: " + id));
     }
 
+    public Users getUserByEmail(String email) {
+        return usersRepository.findByEmail(email)
+                .orElse(null);
+    }
+
     public Users updateUser(Long id, Users userDetails) {
         Users existing = getUserById(id);
         existing.setEmail(userDetails.getEmail());

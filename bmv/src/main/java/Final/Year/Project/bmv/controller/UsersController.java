@@ -11,6 +11,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/users")
+@CrossOrigin(origins = "http://localhost:3000")
 public class UsersController {
 
     @Autowired
@@ -18,36 +19,36 @@ public class UsersController {
 
     // Login API --> expects map with keys: "email", "passwordHash"
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestParam Map<String, String> map) {
+    public ResponseEntity<?> login(@RequestBody Map<String, String> map) {
         // authentication logic placeholder
         String email = map.get("email");
         String passwordHash = map.get("passwordHash");
-        List<Users> users = usersService.getAllUsers();
-        for (Users user : users) {
-            if (user.getEmail().equals(email) && user.getPasswordHash().equals(passwordHash)) {
-                return ResponseEntity.ok(user);
-            }
+        Users user = usersService.getUserByEmail(email);
+        if (user !=null && user.getPasswordHash().equals(passwordHash)) {
+            return ResponseEntity.ok(Map.of("name",user.getFirstName(),"userType",user.getUserType().toString().toLowerCase()));
         }
         return ResponseEntity.status(401).body("Invalid credentials");
     }
 
     // Signup API --> map for user fields like email, passwordHash, ...
     @PostMapping("/signup")
-    public ResponseEntity<Users> signup(@RequestParam Map<String, String> map) {
+    public ResponseEntity<?> signup(@RequestBody Map<String, String> map) {
+        System.out.println(map);
         Users user = Users.builder()
                 .email(map.get("email"))
                 .passwordHash(map.get("passwordHash"))
                 .firstName(map.get("firstName"))
                 .lastName(map.get("lastName"))
                 .phone(map.get("phone"))
-                .userType(Users.UserType.valueOf(map.get("userType")))
+                .userType(Users.UserType.valueOf(map.get("userType").toUpperCase()))
                 .build();
-        return ResponseEntity.ok(usersService.createUser(user));
+        Users created = usersService.createUser(user);
+        return ResponseEntity.ok(Map.of("name",created.getFirstName(),"userType",created.getUserType().toString().toLowerCase()));
     }
 
     // Update profile --> map with user fields to update
     @PutMapping("/{userId}")
-    public ResponseEntity<Users> updateUser(@PathVariable Long userId, @RequestParam Map<String, String> map) {
+    public ResponseEntity<Users> updateUser(@PathVariable Long userId, @RequestBody Map<String, String> map) {
         Users user = usersService.getUserById(userId);
         if (map.containsKey("email")) user.setEmail(map.get("email"));
         if (map.containsKey("passwordHash")) user.setPasswordHash(map.get("passwordHash"));
@@ -55,7 +56,7 @@ public class UsersController {
         if (map.containsKey("lastName")) user.setLastName(map.get("lastName"));
         if (map.containsKey("phone")) user.setPhone(map.get("phone"));
         if (map.containsKey("profileImageUrl")) user.setProfileImageUrl(map.get("profileImageUrl"));
-        if (map.containsKey("userType")) user.setUserType(Users.UserType.valueOf(map.get("userType")));
+        if (map.containsKey("userType")) user.setUserType(Users.UserType.valueOf(map.get("userType").toUpperCase()));
         user.setUpdatedAt(java.time.LocalDateTime.now());
         return ResponseEntity.ok(usersService.updateUser(userId, user));
     }

@@ -46,6 +46,14 @@ public class Users {
     private LocalDateTime updatedAt = LocalDateTime.now();
 
     public enum UserType {
-        CLIENT, VENDOR, ADMIN
+        CLIENT,
+        VENDOR,
+        ADMIN
+    }
+
+
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
     }
 }
