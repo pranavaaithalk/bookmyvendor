@@ -20,4 +20,19 @@ export const fetchUserEvents = (userId) =>
 export const fetchBookings = (vendorId) =>
   axios.get(`${BASE_URL}/vendors/${vendorId}/bookings`);
 
+export const fetchAllEventTypes = () => 
+  axios.get(`${BASE_URL}/events/getEventTypes`);
+
+export const fetchAllServicesAvailable = () =>
+  axios.get(`${BASE_URL}/events/getAllServices`);
+
+export const fetchRecommendedVendors = async (params) => {
+  const resp = await axios.get(`${BASE_URL}/events/top-vendors`, { params });
+  return resp;
+};
+
+export const VendorOnBoarding = async (params) => {
+  const resp = await axios.post(`${BASE_URL}/vendors/profile`, params);
+  return resp;
+};
 // More API methods as required

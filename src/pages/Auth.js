@@ -70,7 +70,7 @@ const Auth = () => {
       if (response.status === 200 && response.data.userType === 'client') {
         navigate('/user-dashboard');
       } else if(response.status === 200 && response.data.userType === 'vendor') {
-        // First-time vendors go to onboarding to fill business details
+        localStorage.setItem('userId', response.data.id);
         navigate('/vendor-onboarding');
       }
     }catch(error){
