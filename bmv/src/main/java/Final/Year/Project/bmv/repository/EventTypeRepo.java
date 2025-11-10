@@ -1,12 +1,9 @@
 package Final.Year.Project.bmv.repository;
 
-import Final.Year.Project.bmv.entity.VendorService;
+import Final.Year.Project.bmv.entity.EventTypes;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
-
 @Repository
-public interface VendorServiceRepository extends JpaRepository<VendorService, Long> {
+public interface EventTypeRepo extends JpaRepository<EventTypes,Long> {
 }
-

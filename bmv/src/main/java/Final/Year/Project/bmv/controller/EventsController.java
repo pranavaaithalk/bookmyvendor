@@ -1,5 +1,6 @@
 package Final.Year.Project.bmv.controller;
 
+import Final.Year.Project.bmv.dto.VendorServiceDto;
 import Final.Year.Project.bmv.entity.*;
 import Final.Year.Project.bmv.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,12 +27,13 @@ public class EventsController {
     @Autowired private VendorServiceRequestService vendorServiceRequestService;
     @Autowired private NotificationsService notificationsService;
     @Autowired private BookingService bookingsService;
+    @Autowired private EventTypeService eventTypeService;
 
-    // Create new event [expect: clientId, eventType, title, description, eventDate, startTime, endTime, guestCount, venueAddress]
+    // Create new event [expect: clientId, eventTypeId, title, description, eventDate, startTime, endTime, guestCount, venueAddress]
     @PostMapping("/create")
     public ResponseEntity<Events> createEvent(@RequestBody Map<String, String> map) {
         Events event = Events.builder()
-                .eventType(map.get("eventType"))
+                .eventType(eventTypeService.getEventTypeById(Long.parseLong(map.get("eventTypeId"))))
                 .title(map.get("title"))
                 .description(map.get("description"))
                 .eventDate(LocalDate.parse(map.get("eventDate")))
@@ -46,14 +48,14 @@ public class EventsController {
     }
 
     // List available services for event configuration
-    @GetMapping("/services")
+    @GetMapping("/getAllServices")
     public ResponseEntity<List<Services>> getAvailableServices() {
         return ResponseEntity.ok(servicesService.getAllServices());
     }
 
     // Get top vendors for a given service at event date/location [expect: serviceId, eventDate, city, guestCount]
     @GetMapping("/top-vendors")
-    public ResponseEntity<List<VendorService>> getTopVendorsForService(@RequestBody Map<String, String> map) {
+    public ResponseEntity<List<VendorServiceDto>> getTopVendorsForService(@RequestParam Map<String, String> map) {
         Long serviceId = Long.parseLong(map.get("serviceId"));
         String city = map.get("city");
         LocalDate eventDate = LocalDate.parse(map.get("eventDate"));
@@ -69,7 +71,10 @@ public class EventsController {
                 .sorted((a, b) -> b.getVendor().getRating().compareTo(a.getVendor().getRating()))
                 .limit(5)
                 .collect(Collectors.toList());
-        return ResponseEntity.ok(filtered);
+        List<VendorServiceDto> dtos = filtered.stream()
+                .map(VendorServiceDto::from)
+                .toList();
+        return ResponseEntity.ok(dtos);
     }
 
     // Client chooses a vendor for a service; service request is sent [expect: eventId, serviceId, vendorServiceId, budgetMin, budgetMax, guestCount, requirements, eventDate]
@@ -202,7 +207,7 @@ public class EventsController {
     @PutMapping("/{eventId}")
     public ResponseEntity<Events> updateEvent(@PathVariable Long eventId, @RequestBody Map<String, String> map) {
         Events existing = eventsService.getEventsById(eventId);
-        if (map.containsKey("eventType")) existing.setEventType(map.get("eventType"));
+        if (map.containsKey("eventTypeId")) existing.setEventType(eventTypeService.getEventTypeById(Long.parseLong(map.get("eventTypeId"))));
         if (map.containsKey("title")) existing.setTitle(map.get("title"));
         if (map.containsKey("description")) existing.setDescription(map.get("description"));
         if (map.containsKey("eventDate")) existing.setEventDate(LocalDate.parse(map.get("eventDate")));
@@ -220,5 +225,10 @@ public class EventsController {
     public ResponseEntity<Void> deleteEvent(@PathVariable Long eventId) {
         eventsService.deleteEvents(eventId);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/getEventTypes")
+    public ResponseEntity<?> getEventTypes(){
+        return ResponseEntity.ok(eventTypeService.getAllEventTypes());
     }
 }

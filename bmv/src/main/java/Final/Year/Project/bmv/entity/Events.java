@@ -22,8 +22,9 @@ public class Events {
     @JoinColumn(name = "client_id", nullable = false)
     private Users client;
 
-    @Column(nullable = false, length = 100)
-    private String eventType;
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "event_type_id",nullable = false)
+    private EventTypes eventType;
 
     @Column(nullable = false)
     private String title;

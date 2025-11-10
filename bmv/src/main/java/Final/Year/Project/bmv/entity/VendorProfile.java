@@ -46,9 +46,9 @@ public class VendorProfile {
     private boolean isApproved = false;
 
     @Column(precision = 3, scale = 2)
-    private BigDecimal rating = new BigDecimal(0);
+    private BigDecimal rating;
 
-    private Integer totalReviews = 0;
+    private Integer totalReviews;
 
     @Column(updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();

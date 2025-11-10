@@ -1,13 +1,17 @@
 package Final.Year.Project.bmv.controller;
 
+import Final.Year.Project.bmv.entity.Users;
 import Final.Year.Project.bmv.entity.VendorProfile;
 import Final.Year.Project.bmv.entity.VendorServiceRequest;
+import Final.Year.Project.bmv.service.UsersService;
 import Final.Year.Project.bmv.service.VendorProfileService;
 import Final.Year.Project.bmv.service.VendorServiceRequestService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -21,6 +25,9 @@ public class VendorController {
 
     @Autowired
     private VendorServiceRequestService vendorServiceRequestService;
+
+    @Autowired
+    private UsersService usersService;
 
     // 1. Get list of new service requests for vendor
     @GetMapping("/requests/new")
@@ -56,11 +63,14 @@ public class VendorController {
     // "userId", "businessName", "businessDescription", "businessAddress", "city", "state", "country",
     // "pincode", "businessPhone", "businessEmail", "businessLogoUrl", "yearsOfExperience", "isFeatured", "isApproved", "rating", "totalReviews"
     @PostMapping("/profile")
-    public ResponseEntity<VendorProfile> createVendorProfile(@RequestBody Map<String, String> map) {
+    public ResponseEntity<?> createVendorProfile(@RequestBody Map<String, String> map) {
         // Extract and build VendorProfile from map
+        Users user = usersService.getUserById(Long.parseLong(map.get("userId")));
+        if(user == null){
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User Not Found");
+        }
         VendorProfile profile = VendorProfile.builder()
-                // You need to fetch associated User entity by userId separately and set here
-                // Example: userService.getUserById(Long.parseLong(map.get("userId")))
+                .user(user)
                 .businessName(map.get("businessName"))
                 .businessDescription(map.get("businessDescription"))
                 .businessAddress(map.get("businessAddress"))
@@ -100,8 +110,8 @@ public class VendorController {
         if (map.containsKey("yearsOfExperience")) existing.setYearsOfExperience(Integer.parseInt(map.get("yearsOfExperience")));
         if (map.containsKey("isFeatured")) existing.setFeatured(Boolean.parseBoolean(map.get("isFeatured")));
         if (map.containsKey("isApproved")) existing.setApproved(Boolean.parseBoolean(map.get("isApproved")));
-        if (map.containsKey("rating")) existing.setRating(new java.math.BigDecimal(map.get("rating")));
-        if (map.containsKey("totalReviews")) existing.setTotalReviews(Integer.parseInt(map.get("totalReviews")));
+        if (map.containsKey("rating")) existing.setRating(BigDecimal.ZERO);
+        if (map.containsKey("totalReviews")) existing.setTotalReviews(0);
         existing.setUpdatedAt(java.time.LocalDateTime.now());
 
         VendorProfile updatedProfile = vendorProfileService.updateVendorProfile(vendorId, existing);

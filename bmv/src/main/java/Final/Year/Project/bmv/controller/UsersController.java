@@ -43,7 +43,7 @@ public class UsersController {
                 .userType(Users.UserType.valueOf(map.get("userType").toUpperCase()))
                 .build();
         Users created = usersService.createUser(user);
-        return ResponseEntity.ok(Map.of("name",created.getFirstName(),"userType",created.getUserType().toString().toLowerCase()));
+        return ResponseEntity.ok(Map.of("name",created.getFirstName(),"userType",created.getUserType().toString().toLowerCase(),"id",created.getUserId()));
     }
 
     // Update profile --> map with user fields to update

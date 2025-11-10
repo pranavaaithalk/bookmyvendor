@@ -40,4 +40,5 @@ public class VendorAvailabilityService {
     public void deleteVendorAvailability(Long id) {
         vendorAvailabilityRepository.deleteById(id);
     }
+
 }
