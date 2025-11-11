@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Container,
   Row,
@@ -10,8 +10,7 @@ import {
   Spinner,
 } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
-import { VendorOnBoarding } from "../services/api";
+import { VendorOnBoarding, fetchAllServicesAvailable } from "../services/api"; // added fetchAllServicesAvailable
 
 const VendorOnboarding = () => {
   const navigate = useNavigate();
@@ -32,18 +31,44 @@ const VendorOnboarding = () => {
     rating: 0.0,
     totalReviews: 0,
     extra: "",
+    servicesProvided: [],
   });
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // services loaded from backend
+  const [services, setServices] = useState([]);
+  const [servicesLoading, setServicesLoading] = useState(true);
+  const [servicesError, setServicesError] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    setServicesLoading(true);
+    fetchAllServicesAvailable()
+      .then((resp) => {
+        const list = resp?.data ?? resp ?? [];
+        if (!mounted) return;
+        setServices(list);
+        setServicesLoading(false);
+      })
+      .catch((err) => {
+        console.error("Failed to load services", err);
+        if (!mounted) return;
+        setServicesError("Failed to load service types");
+        setServicesLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const userIdFromStorage = () => {
-    const id = localStorage.getItem("userId");
+    const id = sessionStorage.getItem("userId");
     return id ? id : null;
   };
 
   const validate = () => {
-    // basic validation: required fields and 6-digit pincode
     if (
       !form.businessName ||
       !form.businessAddress ||
@@ -60,9 +85,18 @@ const VendorOnboarding = () => {
       setError("Please enter a valid 6-digit pincode.");
       return false;
     }
-    // optionally validate phone/email...
     setError(null);
     return true;
+  };
+
+  const toggleServiceSelection = (serviceId) => {
+    setForm((prev) => {
+      const exists = prev.servicesProvided.includes(serviceId);
+      const nextArr = exists
+        ? prev.servicesProvided.filter((id) => id !== serviceId)
+        : [...prev.servicesProvided, serviceId];
+      return { ...prev, servicesProvided: nextArr };
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -76,6 +110,7 @@ const VendorOnboarding = () => {
     }
 
     // Build map expected by backend. Backend currently expects string values in map.
+    // Note: servicesProvided is sent as JSON string. Backend should parse it (or accept comma list).
     const payload = {
       userId: String(userId),
       businessName: form.businessName,
@@ -91,10 +126,12 @@ const VendorOnboarding = () => {
       yearsOfExperience: form.yearsOfExperience
         ? String(form.yearsOfExperience)
         : "",
-      isFeatured: String(form.isFeatured), // controller uses Boolean.parseBoolean
+      isFeatured: String(form.isFeatured),
       isApproved: String(form.isApproved),
-      rating: 0.0,
-      totalReviews: 0,
+      rating: String(form.rating ?? 0.0),
+      totalReviews: String(form.totalReviews ?? 0),
+      // key addition: servicesProvided as JSON string of IDs
+      servicesProvided: JSON.stringify(form.servicesProvided),
     };
 
     setLoading(true);
@@ -102,16 +139,16 @@ const VendorOnboarding = () => {
 
     try {
       const resp = await VendorOnBoarding(payload);
-
-      // success - backend returns created VendorProfile
+      sessionStorage.setItem("userId", resp?.data?.userId);
+      sessionStorage.setItem("vendorId", resp?.data?.vendorId);
       console.log("Vendor onboarding response:", resp?.data);
       // navigate to vendor dashboard or profile page
       navigate("/vendor-dashboard");
     } catch (err) {
       console.error("Failed to create vendor profile", err);
-      // show server message if available
       const msg =
         err?.response?.data?.message ||
+        err?.response?.data ||
         err.message ||
         "Failed to create vendor profile";
       setError(msg);
@@ -172,19 +209,54 @@ const VendorOnboarding = () => {
                   </Form.Group>
 
                   <Form.Group className="mb-3">
-                    <Form.Label>Business Type / Short Description</Form.Label>
-                    <Form.Control
-                      type="text"
-                      placeholder="e.g., Catering, Photographer, Decorator"
-                      value={form.businessDescription}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          businessDescription: e.target.value,
-                        })
-                      }
-                      style={{ borderRadius: "10px" }}
-                    />
+                    <Form.Label>Services Provided</Form.Label>
+
+                    {servicesLoading ? (
+                      <div className="mb-2">
+                        <Spinner
+                          animation="border"
+                          size="sm"
+                          className="me-2"
+                        />{" "}
+                        Loading services...
+                      </div>
+                    ) : servicesError ? (
+                      <Alert variant="warning">{servicesError}</Alert>
+                    ) : (
+                      <div
+                        style={{
+                          maxHeight: 220,
+                          overflowY: "auto",
+                          padding: 10,
+                          border: "1px solid #eee",
+                          borderRadius: 8,
+                        }}
+                      >
+                        {services.length === 0 && (
+                          <div className="text-muted small">
+                            No services available
+                          </div>
+                        )}
+                        {services.map((s) => (
+                          <Form.Check
+                            key={s.serviceId}
+                            type="checkbox"
+                            id={`svc-${s.serviceId}`}
+                            label={s.name}
+                            checked={
+                              form.servicesProvided.includes(
+                                String(s.serviceId)
+                              ) || form.servicesProvided.includes(s.serviceId)
+                            }
+                            onChange={() => toggleServiceSelection(s.serviceId)}
+                            className="mb-1"
+                          />
+                        ))}
+                      </div>
+                    )}
+                    <Form.Text className="text-muted">
+                      Select all services you provide.
+                    </Form.Text>
                   </Form.Group>
 
                   <Form.Group className="mb-3">

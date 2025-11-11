@@ -40,8 +40,11 @@ const Auth = () => {
       const response = await UserLogin(loginData);
     
       if (response.status === 200 && response.data.userType === 'client') {
+        sessionStorage.setItem("userId", response?.data?.userId);
         navigate('/user-dashboard');
       } else if(response.status === 200 && response.data.userType === 'vendor') {
+        sessionStorage.setItem("userId", response?.data?.userId);
+        sessionStorage.setItem("vendorId", response?.data?.vendorId);
         navigate('/vendor-dashboard');
       }
     }catch(error){
@@ -68,9 +71,10 @@ const Auth = () => {
       const response = await UserRegister(signupData);
     
       if (response.status === 200 && response.data.userType === 'client') {
+        sessionStorage.setItem("userId", response?.data?.id);
         navigate('/user-dashboard');
       } else if(response.status === 200 && response.data.userType === 'vendor') {
-        localStorage.setItem('userId', response.data.id);
+        sessionStorage.setItem('userId', response?.data?.id);
         navigate('/vendor-onboarding');
       }
     }catch(error){

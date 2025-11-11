@@ -35,4 +35,9 @@ export const VendorOnBoarding = async (params) => {
   const resp = await axios.post(`${BASE_URL}/vendors/profile`, params);
   return resp;
 };
+
+export const getVendorProfile = async (vendorId) => {
+  const resp = await axios.get(`${BASE_URL}/vendors/profile/${vendorId}`);
+  return resp;
+}
 // More API methods as required
