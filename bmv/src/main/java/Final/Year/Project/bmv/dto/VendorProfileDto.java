@@ -1,64 +1,99 @@
 package Final.Year.Project.bmv.dto;
 
 import java.math.BigDecimal;
-import Final.Year.Project.bmv.entity.VendorProfile;
+import java.util.List;
 
-/**
- * Lightweight DTO for vendor profile information sent to clients.
- */
 public class VendorProfileDto {
-    private final Long vendorId;
-    private final String businessName;
-    private final String city;
-    private final String state;
-    private final String businessLogoUrl;
-    private final BigDecimal rating;
-    private final Integer totalReviews;
-    private final Integer yearsOfExperience;
+    private Long vendorId;
+    private String businessName;
+    private String businessDescription;
+    private String businessAddress;
+    private String city;
+    private String state;
+    private String country;
+    private String pincode;
+    private String businessPhone;
+    private String businessEmail;
+    private String businessLogoUrl;
+    private BigDecimal rating;
+    private Integer totalReviews;
+    private Integer yearsOfExperience;
+    private List<VendorServiceDto> vendorServices; // added list
+
+    public VendorProfileDto() {}
 
     public VendorProfileDto(Long vendorId,
                             String businessName,
+                            String businessDescription,
+                            String businessAddress,
                             String city,
                             String state,
+                            String country,
+                            String pincode,
+                            String businessPhone,
+                            String businessEmail,
                             String businessLogoUrl,
                             BigDecimal rating,
                             Integer totalReviews,
-                            Integer yearsOfExperience) {
+                            Integer yearsOfExperience,
+                            List<VendorServiceDto> vendorServices) {
         this.vendorId = vendorId;
         this.businessName = businessName;
+        this.businessDescription = businessDescription;
+        this.businessAddress = businessAddress;
         this.city = city;
         this.state = state;
+        this.country = country;
+        this.pincode = pincode;
+        this.businessPhone = businessPhone;
+        this.businessEmail = businessEmail;
         this.businessLogoUrl = businessLogoUrl;
         this.rating = rating;
         this.totalReviews = totalReviews;
         this.yearsOfExperience = yearsOfExperience;
+        this.vendorServices = vendorServices;
     }
 
+    // getters
     public Long getVendorId() { return vendorId; }
     public String getBusinessName() { return businessName; }
+    public String getBusinessDescription() { return businessDescription; }
+    public String getBusinessAddress() { return businessAddress; }
     public String getCity() { return city; }
     public String getState() { return state; }
+    public String getCountry() { return country; }
+    public String getPincode() { return pincode; }
+    public String getBusinessPhone() { return businessPhone; }
+    public String getBusinessEmail() { return businessEmail; }
     public String getBusinessLogoUrl() { return businessLogoUrl; }
     public BigDecimal getRating() { return rating; }
     public Integer getTotalReviews() { return totalReviews; }
     public Integer getYearsOfExperience() { return yearsOfExperience; }
+    public List<VendorServiceDto> getVendorServices() { return vendorServices; }
 
-    /**
-     * Map from JPA entity to DTO.
-     * Call this while still inside your service/transaction (so lazy fields are available).
-     */
-    public static VendorProfileDto from(VendorProfile vp) {
+    // mapping helper: call in transactional context so lazy associations can be accessed
+    public static VendorProfileDto from(Final.Year.Project.bmv.entity.VendorProfile vp, java.util.List<Final.Year.Project.bmv.entity.VendorService> vendorServicesList) {
         if (vp == null) return null;
+        java.util.List<VendorServiceDto> vsDtos = java.util.Collections.emptyList();
+        if (vendorServicesList != null && !vendorServicesList.isEmpty()) {
+            vsDtos = vendorServicesList.stream().map(VendorServiceDto::from).toList();
+        }
         return new VendorProfileDto(
                 vp.getVendorId(),
                 vp.getBusinessName(),
+                vp.getBusinessDescription(),
+                vp.getBusinessAddress(),
                 vp.getCity(),
                 vp.getState(),
+                vp.getCountry(),
+                vp.getPincode(),
+                vp.getBusinessPhone(),
+                vp.getBusinessEmail(),
                 vp.getBusinessLogoUrl(),
                 vp.getRating(),
                 vp.getTotalReviews(),
-                vp.getYearsOfExperience()
+                vp.getYearsOfExperience(),
+                vsDtos
         );
     }
 }
-

@@ -21,6 +21,10 @@ public class VendorServiceService {
         return vendorServiceRepository.findAll();
     }
 
+    public List<VendorService> getAllVendorServicesByVendorId(Long id){
+        return vendorServiceRepository.findByVendor_VendorId(id);
+    }
+
     public VendorService getVendorServiceById(Long id) {
         return vendorServiceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("VendorService not found: " + id));

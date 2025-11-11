@@ -16,7 +16,7 @@ public class VendorServiceDto {
     private final Integer minGuests;
     private final Integer maxGuests;
     private final boolean isAvailable;
-    private final VendorProfileDto vendor; // nested DTO
+    private final Long vendorId; // nested DTO
 
     public VendorServiceDto(Long vendorServiceId,
                             Long serviceId,
@@ -27,7 +27,7 @@ public class VendorServiceDto {
                             Integer minGuests,
                             Integer maxGuests,
                             boolean isAvailable,
-                            VendorProfileDto vendor) {
+                            Long vendorId) {
         this.vendorServiceId = vendorServiceId;
         this.serviceId = serviceId;
         this.title = title;
@@ -37,7 +37,7 @@ public class VendorServiceDto {
         this.minGuests = minGuests;
         this.maxGuests = maxGuests;
         this.isAvailable = isAvailable;
-        this.vendor = vendor;
+        this.vendorId = vendorId;
     }
 
     public Long getVendorServiceId() { return vendorServiceId; }
@@ -49,7 +49,7 @@ public class VendorServiceDto {
     public Integer getMinGuests() { return minGuests; }
     public Integer getMaxGuests() { return maxGuests; }
     public boolean isAvailable() { return isAvailable; }
-    public VendorProfileDto getVendor() { return vendor; }
+    public Long getVendorId() { return vendorId; }
 
     /**
      * Map from JPA entity to DTO. Call this from your service layer (within transaction).
@@ -57,7 +57,6 @@ public class VendorServiceDto {
     public static VendorServiceDto from(VendorService vs) {
         if (vs == null) return null;
         Long serviceId = (vs.getService() != null) ? vs.getService().getServiceId() : null;
-        VendorProfileDto vendorDto = VendorProfileDto.from(vs.getVendor());
         return new VendorServiceDto(
                 vs.getVendorServiceId(),
                 serviceId,
@@ -68,7 +67,7 @@ public class VendorServiceDto {
                 vs.getMinGuests(),
                 vs.getMaxGuests(),
                 vs.isAvailable(),
-                vendorDto
+                vs.getVendor().getVendorId()
         );
     }
 }

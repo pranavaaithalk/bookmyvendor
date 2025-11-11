@@ -1,17 +1,17 @@
 package Final.Year.Project.bmv.controller;
 
-import Final.Year.Project.bmv.entity.Users;
-import Final.Year.Project.bmv.entity.VendorProfile;
-import Final.Year.Project.bmv.entity.VendorServiceRequest;
-import Final.Year.Project.bmv.service.UsersService;
-import Final.Year.Project.bmv.service.VendorProfileService;
-import Final.Year.Project.bmv.service.VendorServiceRequestService;
+import Final.Year.Project.bmv.dto.VendorProfileDto;
+import Final.Year.Project.bmv.entity.*;
+import Final.Year.Project.bmv.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -28,6 +28,12 @@ public class VendorController {
 
     @Autowired
     private UsersService usersService;
+
+    @Autowired
+    ServicesService servicesService;
+
+    @Autowired
+    VendorServiceService vendorServiceService;
 
     // 1. Get list of new service requests for vendor
     @GetMapping("/requests/new")
@@ -64,6 +70,8 @@ public class VendorController {
     // "pincode", "businessPhone", "businessEmail", "businessLogoUrl", "yearsOfExperience", "isFeatured", "isApproved", "rating", "totalReviews"
     @PostMapping("/profile")
     public ResponseEntity<?> createVendorProfile(@RequestBody Map<String, String> map) {
+        System.out.println(map.toString());
+        try{
         // Extract and build VendorProfile from map
         Users user = usersService.getUserById(Long.parseLong(map.get("userId")));
         if(user == null){
@@ -89,33 +97,87 @@ public class VendorController {
                 .build();
 
         VendorProfile createdProfile = vendorProfileService.createVendorProfile(profile);
-        return ResponseEntity.ok(createdProfile);
+
+            if (map.containsKey("servicesProvided")) {
+                String raw = map.get("servicesProvided");
+                List<Long> serviceIds = new ArrayList<>();
+
+                // Try JSON parsing first (from frontend JSON.stringify)
+                try {
+                    com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                    serviceIds = Arrays.asList(mapper.readValue(raw, Long[].class));
+                } catch (Exception e) {
+                    // Fallback to comma-separated string
+                    if (raw != null && !raw.isEmpty()) {
+                        serviceIds = Arrays.stream(raw.split(","))
+                                .map(String::trim)
+                                .filter(s -> !s.isEmpty())
+                                .map(Long::parseLong)
+                                .collect(java.util.stream.Collectors.toList());
+                    }
+                }
+
+                // If there are valid service IDs
+                if (!serviceIds.isEmpty()) {
+                    for (Long serviceId : serviceIds) {
+                        Services serviceEntity = servicesService.getServiceById(serviceId);
+                        if (serviceEntity == null) continue;
+
+                        VendorService vendorService = VendorService.builder()
+                                .vendor(createdProfile)
+                                .service(serviceEntity)
+                                .title(serviceEntity.getName())
+                                .description(serviceEntity.getDescription())
+                                .priceRangeStart(BigDecimal.ZERO)
+                                .priceRangeEnd(BigDecimal.ZERO)
+                                .minGuests(null)
+                                .maxGuests(null)
+                                .isAvailable(true)
+                                .createdAt(java.time.LocalDateTime.now())
+                                .updatedAt(java.time.LocalDateTime.now())
+                                .build();
+
+                        vendorServiceService.createVendorService(vendorService);
+                    }
+                }
+            }
+            return ResponseEntity.ok(Map.of("vendorId",createdProfile.getVendorId(),"userId",createdProfile.getUser().getUserId()));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body("Error creating vendor profile: " + e.getMessage());
+        }
     }
 
     // Update Vendor Profile
     // Expects vendorId path param and map with fields to update like create API
     @PutMapping("/profile/{vendorId}")
-    public ResponseEntity<VendorProfile> updateVendorProfile(@PathVariable Long vendorId, @RequestBody Map<String, String> map) {
-        VendorProfile existing = vendorProfileService.getVendorProfileById(vendorId);
-        if (map.containsKey("businessName")) existing.setBusinessName(map.get("businessName"));
-        if (map.containsKey("businessDescription")) existing.setBusinessDescription(map.get("businessDescription"));
-        if (map.containsKey("businessAddress")) existing.setBusinessAddress(map.get("businessAddress"));
-        if (map.containsKey("city")) existing.setCity(map.get("city"));
-        if (map.containsKey("state")) existing.setState(map.get("state"));
-        if (map.containsKey("country")) existing.setCountry(map.get("country"));
-        if (map.containsKey("pincode")) existing.setPincode(map.get("pincode"));
-        if (map.containsKey("businessPhone")) existing.setBusinessPhone(map.get("businessPhone"));
-        if (map.containsKey("businessEmail")) existing.setBusinessEmail(map.get("businessEmail"));
-        if (map.containsKey("businessLogoUrl")) existing.setBusinessLogoUrl(map.get("businessLogoUrl"));
-        if (map.containsKey("yearsOfExperience")) existing.setYearsOfExperience(Integer.parseInt(map.get("yearsOfExperience")));
-        if (map.containsKey("isFeatured")) existing.setFeatured(Boolean.parseBoolean(map.get("isFeatured")));
-        if (map.containsKey("isApproved")) existing.setApproved(Boolean.parseBoolean(map.get("isApproved")));
-        if (map.containsKey("rating")) existing.setRating(BigDecimal.ZERO);
-        if (map.containsKey("totalReviews")) existing.setTotalReviews(0);
-        existing.setUpdatedAt(java.time.LocalDateTime.now());
+    public ResponseEntity<?> updateVendorProfile(@PathVariable Long vendorId, @RequestBody Map<String, String> map) {
+        try {
+            VendorProfile existing = vendorProfileService.getVendorProfileById(vendorId);
+            if (map.containsKey("businessName")) existing.setBusinessName(map.get("businessName"));
+            if (map.containsKey("businessDescription")) existing.setBusinessDescription(map.get("businessDescription"));
+            if (map.containsKey("businessAddress")) existing.setBusinessAddress(map.get("businessAddress"));
+            if (map.containsKey("city")) existing.setCity(map.get("city"));
+            if (map.containsKey("state")) existing.setState(map.get("state"));
+            if (map.containsKey("country")) existing.setCountry(map.get("country"));
+            if (map.containsKey("pincode")) existing.setPincode(map.get("pincode"));
+            if (map.containsKey("businessPhone")) existing.setBusinessPhone(map.get("businessPhone"));
+            if (map.containsKey("businessEmail")) existing.setBusinessEmail(map.get("businessEmail"));
+            if (map.containsKey("businessLogoUrl")) existing.setBusinessLogoUrl(map.get("businessLogoUrl"));
+            if (map.containsKey("yearsOfExperience"))
+                existing.setYearsOfExperience(Integer.parseInt(map.get("yearsOfExperience")));
+            if (map.containsKey("isFeatured")) existing.setFeatured(Boolean.parseBoolean(map.get("isFeatured")));
+            if (map.containsKey("isApproved")) existing.setApproved(Boolean.parseBoolean(map.get("isApproved")));
+            if (map.containsKey("rating")) existing.setRating(BigDecimal.ZERO);
+            if (map.containsKey("totalReviews")) existing.setTotalReviews(0);
+            existing.setUpdatedAt(java.time.LocalDateTime.now());
 
-        VendorProfile updatedProfile = vendorProfileService.updateVendorProfile(vendorId, existing);
-        return ResponseEntity.ok(updatedProfile);
+            VendorProfile updatedProfile = vendorProfileService.updateVendorProfile(vendorId, existing);
+            return ResponseEntity.ok(updatedProfile);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body("Error updating vendor profile: " + e.getMessage());
+        }
     }
 
     // Get all vendor profiles
@@ -126,8 +188,15 @@ public class VendorController {
 
     // Get vendor profile by id
     @GetMapping("/profile/{vendorId}")
-    public ResponseEntity<VendorProfile> getVendorProfileById(@PathVariable Long vendorId) {
-        return ResponseEntity.ok(vendorProfileService.getVendorProfileById(vendorId));
+    @Transactional(readOnly = true)
+    public ResponseEntity<VendorProfileDto> getVendorProfileById(@PathVariable Long vendorId) {
+        VendorProfile vp = vendorProfileService.getVendorProfileById(vendorId);
+        if (vp == null) {
+            return ResponseEntity.notFound().build();
+        }
+        List<VendorService> vendorServices = vendorServiceService.getAllVendorServicesByVendorId(vendorId);
+        VendorProfileDto dto = VendorProfileDto.from(vp, vendorServices);
+        return ResponseEntity.ok(dto);
     }
 
     // Delete vendor profile by id

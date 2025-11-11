@@ -8,6 +8,6 @@ import java.util.List;
 
 @Repository
 public interface VendorProfileRepository extends JpaRepository<VendorProfile, Long> {
-//    List<VendorProfile> findByCityOrderByReviewsDesc(String city);
+    VendorProfile findByUser_UserId(Long userId);
 }
 

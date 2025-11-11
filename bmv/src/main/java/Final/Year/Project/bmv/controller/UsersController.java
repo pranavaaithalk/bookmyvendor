@@ -1,7 +1,9 @@
 package Final.Year.Project.bmv.controller;
 
 import Final.Year.Project.bmv.entity.Users;
+import Final.Year.Project.bmv.entity.VendorProfile;
 import Final.Year.Project.bmv.service.UsersService;
+import Final.Year.Project.bmv.service.VendorProfileService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +19,9 @@ public class UsersController {
     @Autowired
     private UsersService usersService;
 
+    @Autowired
+    VendorProfileService vendorProfileService;
+
     // Login API --> expects map with keys: "email", "passwordHash"
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Map<String, String> map) {
@@ -25,7 +30,12 @@ public class UsersController {
         String passwordHash = map.get("passwordHash");
         Users user = usersService.getUserByEmail(email);
         if (user !=null && user.getPasswordHash().equals(passwordHash)) {
-            return ResponseEntity.ok(Map.of("name",user.getFirstName(),"userType",user.getUserType().toString().toLowerCase()));
+            Long vid = (long)-1;
+            VendorProfile vendor = vendorProfileService.getVendorByUserId(user.getUserId());
+            if(vendor != null){
+                vid = vendor.getVendorId();
+            }
+            return ResponseEntity.ok(Map.of("name",user.getFirstName(),"userType",user.getUserType().toString().toLowerCase(),"userId",user.getUserId(),"vendorId",vid));
         }
         return ResponseEntity.status(401).body("Invalid credentials");
     }

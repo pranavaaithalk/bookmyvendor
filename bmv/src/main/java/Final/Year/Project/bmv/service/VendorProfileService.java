@@ -53,7 +53,7 @@ public class VendorProfileService {
         vendorProfileRepository.deleteById(id);
     }
 
-//    public List<VendorProfile> getVendorsByCityAndService(String city){
-//        return vendorProfileRepository.findByCityOrderByReviewsDesc(city);
-//    }
+    public VendorProfile getVendorByUserId(Long id){
+        return vendorProfileRepository.findByUser_UserId(id);
+    }
 }
