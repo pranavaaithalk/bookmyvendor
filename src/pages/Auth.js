@@ -53,10 +53,17 @@ const Auth = () => {
   };
 
   const handlePass = () =>{
-    setLoginData({
-      email: 'e@e.c',
-      passwordHash: 'r'
-    });
+    if(_userType === 'client'){
+      setLoginData({
+        email: 'e@e.c',
+        passwordHash: 'r'
+      });
+    }else{
+      setLoginData({
+        email: "coastalfeast@gmail.com",
+        passwordHash: "vendor123",
+      });
+    }
   };
 
   const handleSignup = async(e) => {

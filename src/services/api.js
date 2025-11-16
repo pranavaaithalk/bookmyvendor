@@ -11,9 +11,6 @@ export const UserRegister = (registerData) =>
 export const fetchVendorsByService = (location, service, budget) =>
   axios.get(`${BASE_URL}/vendors`, { params: { location, service, budget } });
 
-export const createEvent = (eventData) =>
-  axios.post(`${BASE_URL}/events`, eventData);
-
 export const fetchUserEvents = (userId) =>
   axios.get(`${BASE_URL}/users/${userId}/events`);
 
@@ -38,6 +35,19 @@ export const VendorOnBoarding = async (params) => {
 
 export const getVendorProfile = async (vendorId) => {
   const resp = await axios.get(`${BASE_URL}/vendors/profile/${vendorId}`);
+  return resp;
+}
+
+export const raiseBookingRequest = async (payload) => {
+  const resp = await axios.post(
+    `${BASE_URL}/events/create-service-request`,
+    payload
+  );
+  return resp;
+}
+
+export const createEvent = async (eventData) => {
+  const resp = await axios.post(`${BASE_URL}/events/newEvent`, eventData);
   return resp;
 }
 // More API methods as required

@@ -61,6 +61,7 @@ const VendorDashboard = () => {
     description: "",
     services: [],
     priceRange: "",
+    totalRevenue:0,
   });
   const [profileForm, setProfileForm] = useState(null);
 
@@ -87,6 +88,7 @@ const VendorDashboard = () => {
       try {
         const resp = await getVendorProfile(vendorId);
         const dto = resp?.data;
+        console.log("Vendor profile DTO:", dto);
         if (!mounted) return;
 
         if (!dto) {
@@ -120,6 +122,7 @@ const VendorDashboard = () => {
           dto.rating !== undefined && dto.rating !== null
             ? Number(dto.rating)
             : 0;
+        const totalRevenue = Number(dto.totalRevenue);
         const reviews =
           dto.totalReviews ?? dto.total_reviews ?? analytics.reviews;
 
@@ -184,6 +187,7 @@ const VendorDashboard = () => {
           description,
           services,
           priceRange,
+          totalRevenue,
         };
 
         setVendorProfile(mapped);
@@ -442,34 +446,22 @@ const VendorDashboard = () => {
                 title="Total Bookings"
                 value={analytics.totalBookings}
                 color="#6366f1"
-                subtitle="This month: +12"
               />
             </Col>
             <Col lg={3} md={6} className="mb-3">
               <StatCard
                 icon={FaRupeeSign}
                 title="Total Revenue"
-                value={`₹${analytics.totalRevenue.toLocaleString()}`}
+                value={`₹${vendorProfile.totalRevenue.toLocaleString()}`}
                 color="#10b981"
-                subtitle="This month: ₹85,000"
               />
             </Col>
             <Col lg={3} md={6} className="mb-3">
               <StatCard
                 icon={FaStar}
                 title="Average Rating"
-                value={analytics.averageRating}
+                value={vendorProfile.rating.toFixed(1)}
                 color="#f59e0b"
-                subtitle={`${analytics.reviews} reviews`}
-              />
-            </Col>
-            <Col lg={3} md={6} className="mb-3">
-              <StatCard
-                icon={FaEye}
-                title="Profile Views"
-                value={analytics.profileViews}
-                color="#8b5cf6"
-                subtitle="This week: +89"
               />
             </Col>
           </Row>

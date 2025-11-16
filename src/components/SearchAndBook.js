@@ -19,6 +19,7 @@ import {
   FaCalendarAlt,
   FaUsers,
   FaRupeeSign,
+  FaCheckCircle,
 } from "react-icons/fa";
 import BookingModal from "../components/BookingModal";
 import {
@@ -77,7 +78,7 @@ const eventServiceMap = {
 
 const SearchAndBook = () => {
   // form state
-  const [eventType, setEventType] = useState("Wedding");
+  const [eventType, setEventType] = useState({});
   const [location, setLocation] = useState("Mangalore");
   const [date, setDate] = useState("2025-08-02");
   const [totalBudget, setTotalBudget] = useState("550000");
@@ -97,8 +98,12 @@ const SearchAndBook = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  // removed single bookingVendor approach; we'll store selected vendors per service
   const [bookingVendor, setBookingVendor] = useState(null);
   const [recommendedByService, setRecommendedByService] = useState({}); // { [serviceId]: [vendor,...] }
+
+  // NEW: selected vendor per serviceId -> vendor object
+  const [selectedVendorsByService, setSelectedVendorsByService] = useState({});
 
   // helpers
   const formatCurrency = (n) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
@@ -153,7 +158,7 @@ const SearchAndBook = () => {
   // map available services by event type — using services state (not the fetch function)
   const availableServices = services.filter((s) => {
     const keyName = (s.name || "").toString().toLowerCase();
-    return (eventServiceMap[eventType] || []).includes(keyName);
+    return (eventServiceMap[eventType.name] || []).includes(keyName);
   });
 
   // when eventType changes: enable core services only for available ones
@@ -174,10 +179,18 @@ const SearchAndBook = () => {
   }, [eventType, services]);
 
   const toggleService = (serviceId) => {
-    setSelectedServices((prev) => ({
-      ...prev,
-      [String(serviceId)]: !prev[String(serviceId)],
-    }));
+    setSelectedServices((prev) => {
+      const next = { ...prev, [String(serviceId)]: !prev[String(serviceId)] };
+      // if service is turned off, also remove any selected vendor for that service
+      if (!next[String(serviceId)]) {
+        setSelectedVendorsByService((pv) => {
+          const copy = { ...pv };
+          delete copy[String(serviceId)];
+          return copy;
+        });
+      }
+      return next;
+    });
   };
 
   const handleBudgetChange = (serviceId, value) => {
@@ -246,97 +259,93 @@ const SearchAndBook = () => {
     }
   };
 
-  const VendorCard = ({ vendor }) => (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      whileHover={{ y: -5 }}
-    >
-      <Card className="card-modern h-100 position-relative">
-        <div className="position-relative">
-          {vendor.businessLogoUrl && (
-            <Card.Img
-              variant="top"
-              src={vendor.businessLogoUrl}
-              style={{ height: "200px", objectFit: "cover" }}
-            />
-          )}
-          <div className="position-absolute top-0 end-0 p-2">
-            <Button
-              variant="link"
-              className="p-1 text-white"
-              onClick={() => toggleFavorite(vendor.vendorId)}
-              style={{ background: "rgba(0,0,0,0.5)", borderRadius: "50%" }}
-            >
-              <FaHeart
-                color={
-                  favorites.includes(vendor.vendorId) ? "#ef4444" : "white"
+  // select/deselect vendor for a given service
+  const selectVendorForService = (serviceId, vendor) => {
+    setSelectedVendorsByService((prev) => {
+      const key = String(serviceId);
+      // toggle: if same vendor is already selected, unselect; otherwise set
+      if (prev[key] && prev[key].vendorId === vendor.vendorId) {
+        const copy = { ...prev };
+        delete copy[key];
+        return copy;
+      }
+      return { ...prev, [key]: vendor };
+    });
+  };
+
+  const VendorCard = ({ vendor, serviceId }) => {
+    const isSelectedForThisService =
+      selectedVendorsByService[String(serviceId)] &&
+      selectedVendorsByService[String(serviceId)].vendorId === vendor.vendorId;
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        whileHover={{ y: -5 }}
+      >
+        <Card className="card-modern h-100 position-relative">
+          <Card.Body className="d-flex flex-column">
+            <Card.Title className="d-flex justify-content-between align-items-start">
+              <span>{vendor.vendorName}</span>
+              <Button
+                variant={
+                  isSelectedForThisService ? "success" : "outline-primary"
                 }
-              />
-            </Button>
-          </div>
-          <Badge
-            bg="warning"
-            className="position-absolute bottom-0 start-0 m-2"
-          >
-            <FaStar className="me-1" /> {vendor.rating}
-          </Badge>
-        </div>
+                size="sm"
+                onClick={() => selectVendorForService(serviceId, vendor)}
+              >
+                {isSelectedForThisService ? (
+                  <>
+                    <FaCheckCircle className="me-1" /> Selected
+                  </>
+                ) : (
+                  "Select Vendor"
+                )}
+              </Button>
+            </Card.Title>
 
-        <Card.Body className="d-flex flex-column">
-          <Card.Title className="d-flex justify-content-between align-items-start">
-            <span>{vendor.businessName}</span>
-            <Button
-              variant="outline-primary"
-              size="sm"
-              onClick={() => toggleCompare(vendor)}
-              disabled={
-                compareList.length >= 3 &&
-                !compareList.find((v) => v.vendorId === vendor.vendorId)
-              }
-            >
-              <FaExchangeAlt />
-            </Button>
-          </Card.Title>
+            <small className="text-muted d-flex align-items-center">
+              <FaStar className="me-1" /> {vendor.vendorRating}
+            </small>
+            <small className="text-muted d-flex align-items-center">
+              <FaMapMarkerAlt className="me-1" /> {vendor.vendorCity}
+            </small>
 
-          <small className="text-muted d-flex align-items-center">
-            <FaMapMarkerAlt className="me-1" /> {vendor.city}, {vendor.state}
-          </small>
-
-          <div className="mt-auto">
-            <Row className="g-2">
-              <Col>
-                <Button
-                  variant="outline-primary"
-                  size="sm"
-                  className="w-100"
-                  onClick={() => {
-                    /* view details */
-                  }}
-                >
-                  View Details
-                </Button>
-              </Col>
-              <Col>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  className="w-100"
-                  onClick={() => {
-                    setBookingVendor(vendor);
-                    setShowBookingModal(true);
-                  }}
-                >
-                  Book Now
-                </Button>
-              </Col>
-            </Row>
-          </div>
-        </Card.Body>
-      </Card>
-    </motion.div>
-  );
+            <div className="mt-auto">
+              <Row className="g-2">
+                <Col>
+                  <Button
+                    variant="outline-primary"
+                    size="sm"
+                    className="w-100"
+                    onClick={() => {
+                      /* view details */
+                      setBookingVendor(vendor); // allow quick preview in modal if you want
+                      // NOTE: do not open the booking modal here in the new flow
+                    }}
+                  >
+                    View Details
+                  </Button>
+                </Col>
+                <Col>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="w-100"
+                    onClick={() => selectVendorForService(serviceId, vendor)}
+                  >
+                    {isSelectedForThisService ? "Unselect" : "Select"}
+                  </Button>
+                </Col>
+              </Row>
+            </div>
+          </Card.Body>
+        </Card>
+      </motion.div>
+    );
+  };
 
   // budget caps indexed by lowercased service name
   const budgetCapsByServiceName = {
@@ -350,6 +359,15 @@ const SearchAndBook = () => {
     security: 150000,
     "makeup & styling": 250000,
   };
+
+  // compute required services (those available & selected)
+  const requiredServiceIds = availableServices
+    .filter((s) => selectedServices[String(s.serviceId)])
+    .map((s) => String(s.serviceId));
+
+  const allServicesHaveSelection = requiredServiceIds.every((id) =>
+    Boolean(selectedVendorsByService[id])
+  );
 
   return (
     <Container className="my-4 fade-in">
@@ -383,12 +401,27 @@ const SearchAndBook = () => {
                   <FaCalendarAlt className="me-2 text-primary" /> Event Type
                 </Form.Label>
                 <Form.Select
-                  value={eventType}
-                  onChange={(e) => setEventType(e.target.value)}
+                  value={eventType?.eventTypeId ?? ""}
+                  onChange={(e) => {
+                    const id = Number(e.target.value);
+                    const found = eventTypesList.find(
+                      (t) => Number(t.eventTypeId) === id
+                    );
+                    if (found) {
+                      setEventType(found);
+                    } else {
+                      // fallback: keep a minimal object
+                      setEventType({
+                        name: String(e.target.value),
+                        eventTypeId: id,
+                      });
+                    }
+                  }}
                   className="form-control-modern"
                 >
+                  <option value="">Select event type</option>
                   {eventTypesList.map((t) => (
-                    <option key={t.eventTypeId} value={t.name}>
+                    <option key={t.eventTypeId} value={t.eventTypeId}>
                       {t.name}
                     </option>
                   ))}
@@ -572,7 +605,7 @@ const SearchAndBook = () => {
           </div>
           <div className="fw-semibold">Searching vendors</div>
           <div className="text-muted small">
-            {location} • {eventType}
+            {location} • {eventType.name}
           </div>
         </Modal.Body>
       </Modal>
@@ -582,14 +615,26 @@ const SearchAndBook = () => {
           {availableServices.map(({ serviceId, name }) =>
             selectedServices[String(serviceId)] &&
             recommendedByService[String(serviceId)]?.length > 0 ? (
-              <div key={serviceId}>
-                <h4>{name} Services</h4>
+              <div key={serviceId} className="mb-4">
+                <h4 className="d-flex justify-content-between align-items-center">
+                  <span>{name} Services</span>
+                  <small className="text-muted">
+                    {selectedVendorsByService[String(serviceId)] ? (
+                      <>
+                        Selected:{" "}
+                        {selectedVendorsByService[String(serviceId)].vendorName}
+                      </>
+                    ) : (
+                      "No selection"
+                    )}
+                  </small>
+                </h4>
                 <Row>
                   {recommendedByService[String(serviceId)].map((vs) => {
-                    const vendor = vs.vendor ? vs.vendor : vs; // adjust if response wraps vendor
+                    const vendor = vs.vendor ? vs.vendor : vs;
                     return (
-                      <Col md={4} key={vendor.vendorId}>
-                        <VendorCard vendor={vendor} />
+                      <Col md={4} key={vendor.vendorId} className="mb-3">
+                        <VendorCard vendor={vendor} serviceId={serviceId} />
                       </Col>
                     );
                   })}
@@ -597,15 +642,38 @@ const SearchAndBook = () => {
               </div>
             ) : null
           )}
+
+          {/* CONTINUE button - only enabled when user has selected one vendor for every required service */}
+          <div className="d-flex justify-content-end mt-3">
+            <Button
+              variant="success"
+              size="lg"
+              disabled={
+                !allServicesHaveSelection || requiredServiceIds.length === 0
+              }
+              onClick={() => {
+                // open BookingModal with entire selection
+                setShowBookingModal(true);
+              }}
+            >
+              Continue to Booking
+            </Button>
+          </div>
         </div>
       )}
 
       <BookingModal
         show={showBookingModal}
         onHide={() => setShowBookingModal(false)}
-        vendor={bookingVendor}
+        eventDate={date}
+        guestCount={guestCount}
+        location={location}
+        selectedVendors={selectedVendorsByService}
         selectedServices={selectedServices}
         budgets={budgets}
+        eventType={
+          eventType?.eventTypeId ? Number(eventType.eventTypeId) : null
+        }
       />
     </Container>
   );
