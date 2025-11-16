@@ -89,6 +89,7 @@ public class VendorController {
                 .businessPhone(map.get("businessPhone"))
                 .businessEmail(map.get("businessEmail"))
                 .businessLogoUrl(map.get("businessLogoUrl"))
+                .totalRevenue(0)
                 .yearsOfExperience(map.containsKey("yearsOfExperience") ? Integer.parseInt(map.get("yearsOfExperience")) : null)
                 .isFeatured(Boolean.parseBoolean(map.getOrDefault("isFeatured", "false")))
                 .isApproved(Boolean.parseBoolean(map.getOrDefault("isApproved", "false")))

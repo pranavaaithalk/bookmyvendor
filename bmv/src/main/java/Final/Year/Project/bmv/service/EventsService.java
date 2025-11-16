@@ -34,7 +34,6 @@ public class EventsService {
         existing.setDescription(eventsDetails.getDescription());
         existing.setEventDate(eventsDetails.getEventDate());
         existing.setStartTime(eventsDetails.getStartTime());
-        existing.setEndTime(eventsDetails.getEndTime());
         existing.setGuestCount(eventsDetails.getGuestCount());
         existing.setVenueAddress(eventsDetails.getVenueAddress());
         existing.setStatus(eventsDetails.getStatus());

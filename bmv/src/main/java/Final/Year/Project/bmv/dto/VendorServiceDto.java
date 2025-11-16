@@ -16,6 +16,9 @@ public class VendorServiceDto {
     private final Integer minGuests;
     private final Integer maxGuests;
     private final boolean isAvailable;
+    private final String vendorName;
+    public final BigDecimal vendorRating;
+    public final String vendorCity;
     private final Long vendorId; // nested DTO
 
     public VendorServiceDto(Long vendorServiceId,
@@ -27,6 +30,9 @@ public class VendorServiceDto {
                             Integer minGuests,
                             Integer maxGuests,
                             boolean isAvailable,
+                            String vendorName,
+                            BigDecimal vendorRating,
+                            String vendorCity,
                             Long vendorId) {
         this.vendorServiceId = vendorServiceId;
         this.serviceId = serviceId;
@@ -37,6 +43,9 @@ public class VendorServiceDto {
         this.minGuests = minGuests;
         this.maxGuests = maxGuests;
         this.isAvailable = isAvailable;
+        this.vendorName = vendorName;
+        this.vendorRating = vendorRating;
+        this.vendorCity = vendorCity;
         this.vendorId = vendorId;
     }
 
@@ -49,6 +58,9 @@ public class VendorServiceDto {
     public Integer getMinGuests() { return minGuests; }
     public Integer getMaxGuests() { return maxGuests; }
     public boolean isAvailable() { return isAvailable; }
+    public String getVendorName() { return vendorName; }
+    public BigDecimal getVendorRating() { return vendorRating; }
+    public String getVendorCity() { return vendorCity; }
     public Long getVendorId() { return vendorId; }
 
     /**
@@ -67,6 +79,9 @@ public class VendorServiceDto {
                 vs.getMinGuests(),
                 vs.getMaxGuests(),
                 vs.isAvailable(),
+                vs.getVendor().getBusinessName(),
+                vs.getVendor().getRating(),
+                vs.getVendor().getCity(),
                 vs.getVendor().getVendorId()
         );
     }

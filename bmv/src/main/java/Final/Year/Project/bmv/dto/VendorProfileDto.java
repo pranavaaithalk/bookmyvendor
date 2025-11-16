@@ -17,6 +17,7 @@ public class VendorProfileDto {
     private String businessLogoUrl;
     private BigDecimal rating;
     private Integer totalReviews;
+    private Integer totalRevenue;
     private Integer yearsOfExperience;
     private List<VendorServiceDto> vendorServices; // added list
 
@@ -35,6 +36,7 @@ public class VendorProfileDto {
                             String businessLogoUrl,
                             BigDecimal rating,
                             Integer totalReviews,
+                            Integer totalRevenue,
                             Integer yearsOfExperience,
                             List<VendorServiceDto> vendorServices) {
         this.vendorId = vendorId;
@@ -50,6 +52,7 @@ public class VendorProfileDto {
         this.businessLogoUrl = businessLogoUrl;
         this.rating = rating;
         this.totalReviews = totalReviews;
+        this.totalRevenue = totalRevenue;
         this.yearsOfExperience = yearsOfExperience;
         this.vendorServices = vendorServices;
     }
@@ -70,6 +73,7 @@ public class VendorProfileDto {
     public Integer getTotalReviews() { return totalReviews; }
     public Integer getYearsOfExperience() { return yearsOfExperience; }
     public List<VendorServiceDto> getVendorServices() { return vendorServices; }
+    public Integer getTotalRevenue() { return totalRevenue; }
 
     // mapping helper: call in transactional context so lazy associations can be accessed
     public static VendorProfileDto from(Final.Year.Project.bmv.entity.VendorProfile vp, java.util.List<Final.Year.Project.bmv.entity.VendorService> vendorServicesList) {
@@ -92,6 +96,7 @@ public class VendorProfileDto {
                 vp.getBusinessLogoUrl(),
                 vp.getRating(),
                 vp.getTotalReviews(),
+                vp.getTotalRevenue(),
                 vp.getYearsOfExperience(),
                 vsDtos
         );

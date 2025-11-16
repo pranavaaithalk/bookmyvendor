@@ -3,7 +3,9 @@ package Final.Year.Project.bmv.controller;
 import Final.Year.Project.bmv.dto.VendorServiceDto;
 import Final.Year.Project.bmv.entity.*;
 import Final.Year.Project.bmv.service.*;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,24 +30,7 @@ public class EventsController {
     @Autowired private NotificationsService notificationsService;
     @Autowired private BookingService bookingsService;
     @Autowired private EventTypeService eventTypeService;
-
-    // Create new event [expect: clientId, eventTypeId, title, description, eventDate, startTime, endTime, guestCount, venueAddress]
-    @PostMapping("/create")
-    public ResponseEntity<Events> createEvent(@RequestBody Map<String, String> map) {
-        Events event = Events.builder()
-                .eventType(eventTypeService.getEventTypeById(Long.parseLong(map.get("eventTypeId"))))
-                .title(map.get("title"))
-                .description(map.get("description"))
-                .eventDate(LocalDate.parse(map.get("eventDate")))
-                .startTime(map.containsKey("startTime") ? LocalTime.parse(map.get("startTime")) : null)
-                .endTime(map.containsKey("endTime") ? LocalTime.parse(map.get("endTime")) : null)
-                .guestCount(map.containsKey("guestCount") ? Integer.parseInt(map.get("guestCount")) : null)
-                .venueAddress(map.get("venueAddress"))
-                .status(Events.Status.DRAFT)
-                .build();
-        Events created = eventsService.createEvents(event);
-        return ResponseEntity.ok(created);
-    }
+    @Autowired private UsersService usersService;
 
     // List available services for event configuration
     @GetMapping("/getAllServices")
@@ -79,26 +64,26 @@ public class EventsController {
 
     // Client chooses a vendor for a service; service request is sent [expect: eventId, serviceId, vendorServiceId, budgetMin, budgetMax, guestCount, requirements, eventDate]
     @PostMapping("/create-service-request")
-    public ResponseEntity<ServiceRequest> createServiceRequest(@RequestBody Map<String, String> map) {
-        Events event = eventsService.getEventsById(Long.parseLong(map.get("eventId")));
+    public ResponseEntity<?> createServiceRequest(@RequestBody BookingPayload payload) {
+        List<Map<String, String>> servicesList = payload.getServices();
+        Events event = eventsService.getEventsById(Long.parseLong(payload.getEventId()));
+        servicesList.forEach(map -> {
         Services service = servicesService.getServiceById(Long.parseLong(map.get("serviceId")));
-        VendorService vendorService = vendorServiceService.getVendorServiceById(Long.parseLong(map.get("vendorServiceId")));
+        VendorProfile vendor = vendorProfileService.getVendorProfileById(Long.parseLong(map.get("vendorId")));
 
         ServiceRequest sr = ServiceRequest.builder()
                 .event(event)
                 .service(service)
-                .budgetMin(new java.math.BigDecimal(map.getOrDefault("budgetMin", "0")))
-                .budgetMax(new java.math.BigDecimal(map.getOrDefault("budgetMax", "0")))
-                .guestCount(map.containsKey("guestCount") ? Integer.parseInt(map.get("guestCount")) : null)
-                .eventDate(LocalDate.parse(map.get("eventDate")))
-                .requirements(map.get("requirements"))
+                .budgetMin(new java.math.BigDecimal(0))
+                .budgetMax(new java.math.BigDecimal(map.getOrDefault("budget", "0")))
+                .guestCount(event.getGuestCount())
+                .eventDate(event.getEventDate())
                 .status(ServiceRequest.Status.OPEN)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
         sr = serviceRequestService.createServiceRequest(sr);
 
-        VendorProfile vendor = vendorService.getVendor();
         VendorServiceRequest vsr = VendorServiceRequest.builder()
                 .serviceRequest(sr)
                 .vendor(vendor)
@@ -109,8 +94,9 @@ public class EventsController {
                 .updatedAt(LocalDateTime.now())
                 .build();
         vendorServiceRequestService.createVendorServiceRequest(vsr);
+        });
 
-        return ResponseEntity.ok(sr);
+        return ResponseEntity.ok("Event Created");
     }
 
     // Vendor responds to a service request [expect: vendorRequestId, response (ACCEPTED/REJECTED)]
@@ -212,7 +198,6 @@ public class EventsController {
         if (map.containsKey("description")) existing.setDescription(map.get("description"));
         if (map.containsKey("eventDate")) existing.setEventDate(LocalDate.parse(map.get("eventDate")));
         if (map.containsKey("startTime")) existing.setStartTime(LocalTime.parse(map.get("startTime")));
-        if (map.containsKey("endTime")) existing.setEndTime(LocalTime.parse(map.get("endTime")));
         if (map.containsKey("guestCount")) existing.setGuestCount(Integer.parseInt(map.get("guestCount")));
         if (map.containsKey("venueAddress")) existing.setVenueAddress(map.get("venueAddress"));
         if (map.containsKey("status")) existing.setStatus(Events.Status.valueOf(map.get("status").toUpperCase()));
@@ -231,4 +216,53 @@ public class EventsController {
     public ResponseEntity<?> getEventTypes(){
         return ResponseEntity.ok(eventTypeService.getAllEventTypes());
     }
+
+    @PostMapping("/newEvent")
+    @Transactional
+    public ResponseEntity<?> createEventFromBooking(@RequestBody Map<String, String> bookingData) {
+        try {
+            if (bookingData == null) {
+                return ResponseEntity.badRequest().body("bookingData is required");
+            }
+            System.out.println(bookingData);
+            LocalDate eventDate = LocalDate.parse(bookingData.get("eventDate"));
+            LocalTime startTime = LocalTime.parse(bookingData.get("eventTime"));
+            Integer guestCount = Integer.parseInt(bookingData.get("guestCount"));
+            String specialRequests = bookingData.getOrDefault("specialRequests", "");
+            String venue = bookingData.getOrDefault("venue", bookingData.getOrDefault("venueAddress", null));
+            EventTypes evtType = eventTypeService.getEventTypeById(Long.parseLong(bookingData.get("eventType")));
+            Long UserId = Long.parseLong(bookingData.get("userId"));
+
+            Users client = usersService.getUserById(UserId);
+            if (client == null) {
+                return ResponseEntity.badRequest().body("Invalid UserId.");
+            }
+
+            if (evtType == null) {
+                return ResponseEntity.badRequest().body("Invalid Event Type.");
+            }
+            Events event = Events.builder()
+                    .client(client)
+                    .eventType(evtType)
+                    .title("Event - " + (evtType != null ? evtType.getName() : "General"))
+                    .description(specialRequests)
+                    .eventDate(eventDate)
+                    .startTime(startTime)
+                    .guestCount(guestCount)
+                    .venueAddress(venue)
+                    .status(Events.Status.DRAFT)
+                    .createdAt(LocalDateTime.now())
+                    .updatedAt(LocalDateTime.now())
+                    .build();
+
+            Events created = eventsService.createEvents(event);
+
+            return ResponseEntity.ok(String.valueOf(created.getEventId()));
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to create event: " + ex.getMessage());
+        }
+    }
+
 }

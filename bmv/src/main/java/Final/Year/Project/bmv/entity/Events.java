@@ -36,7 +36,7 @@ public class Events {
     private LocalDate eventDate;
 
     private LocalTime startTime;
-    private LocalTime endTime;
+    //private LocalTime endTime;
 
     private Integer guestCount;
 

@@ -50,6 +50,8 @@ public class VendorProfile {
 
     private Integer totalReviews;
 
+    private Integer totalRevenue;
+
     @Column(updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
