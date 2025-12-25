@@ -50,4 +50,25 @@ export const createEvent = async (eventData) => {
   const resp = await axios.post(`${BASE_URL}/events/newEvent`, eventData);
   return resp;
 }
-// More API methods as required
+
+export const updateVendorProfile = async (vendorId, payload) => {
+  return axios.put(`${BASE_URL}/vendors/profile/${vendorId}`, payload, {
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+};
+
+export const getVendorBookings = async (vendorId) => {
+  return axios.get(`${BASE_URL}/bookings/vendor/${vendorId}`);
+};
+
+export const getVendorServiceRequests = async (vendorId) => {
+  const resp = axios.get(`${BASE_URL}/bookings/vendor/${vendorId}`);
+  console.log('Service Requests Response:', resp);
+  return resp;
+};
+
+export const respondToServiceRequest = (vendorRequestId, response) => {
+  return axios.post(`${BASE_URL}/events/respond-service-request/${vendorRequestId}`, response);
+}

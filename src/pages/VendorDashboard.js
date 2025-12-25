@@ -35,7 +35,14 @@ import {
   FaTimesCircle,
   FaHourglassHalf,
 } from "react-icons/fa";
-import { getVendorProfile } from "../services/api"; // <-- make sure this path matches your project
+import {
+  getVendorProfile,
+  updateVendorProfile,
+  getVendorBookings,
+  getVendorServiceRequests,
+  respondToServiceRequest
+} from "../services/api"; // <-- make sure this path matches your project
+import { useNavigate } from "react-router-dom";
 
 const VendorDashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
@@ -47,6 +54,7 @@ const VendorDashboard = () => {
 
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [profileError, setProfileError] = useState(null);
+  const navigate = useNavigate();
 
   // Vendor profile state (editable)
   const [vendorProfile, setVendorProfile] = useState({
@@ -64,6 +72,11 @@ const VendorDashboard = () => {
     totalRevenue:0,
   });
   const [profileForm, setProfileForm] = useState(null);
+  const [pendingRequests, setPendingRequests] = useState([]);
+  const [confirmedBookings, setConfirmedBookings] = useState([]);
+  const [loadingRequests, setLoadingRequests] = useState(true);
+
+  const [loadingBookings, setLoadingBookings] = useState(true);
 
   // analytics + bookings remain static demo data (you can fetch them later)
   const analytics = {
@@ -77,14 +90,42 @@ const VendorDashboard = () => {
     profileViews: 1250,
     reviews: 156,
   };
+  
+  const buildUpdatePayload = (form) => {
+    const payload = {};
+
+    if (form.name) payload.businessName = form.name;
+    if (form.description) payload.businessDescription = form.description;
+    if (form.phone) payload.businessPhone = form.phone;
+    if (form.email) payload.businessEmail = form.email;
+
+    // location = "City, State"
+    if (form.location) {
+      const [city, state] = form.location.split(",").map((s) => s.trim());
+      if (city) payload.city = city;
+      if (state) payload.state = state;
+    }
+
+    // "5 years" → 5
+    if (form.experience) {
+      const years = parseInt(form.experience);
+      if (!isNaN(years)) payload.yearsOfExperience = years;
+    }
+
+    return payload;
+  };
 
   useEffect(() => {
     let mounted = true;
-    const vendorId = sessionStorage.getItem("vendorId") || "1";
+    const vendorId = sessionStorage.getItem("vendorId") || "-1";
 
     const loadProfile = async () => {
       setLoadingProfile(true);
       setProfileError(null);
+      if(vendorId === "-1") {
+        navigate("/auth");
+        return;
+      }
       try {
         const resp = await getVendorProfile(vendorId);
         const dto = resp?.data;
@@ -203,72 +244,141 @@ const VendorDashboard = () => {
       }
     };
 
+    const loadBookingsAndRequests = async () => {
+      try {
+        const vendorId = sessionStorage.getItem("vendorId");
+
+        const [bookingsRes, requestsRes] = await Promise.all([
+          getVendorBookings(vendorId),
+          getVendorServiceRequests(vendorId),
+        ]);
+
+        setConfirmedBookings(bookingsRes.data || []);
+        setPendingRequests(
+          (requestsRes.data || []).filter((r) => r.status === "PENDING")
+        );
+      } catch (err) {
+        console.error("Failed to load vendor data", err);
+      } finally {
+        setLoadingBookings(false);
+        setLoadingRequests(false);
+      }
+    };
+
+
     loadProfile();
+    loadBookingsAndRequests();
     return () => {
       mounted = false;
     };
   }, []);
 
-  // The rest of your original code (booking handlers etc.) stays same
-  const initialRecentBookings = [
-    {
-      id: 1,
-      eventName: "Sharma Wedding",
-      clientName: "Priya Sharma",
-      date: "2025-03-15",
-      time: "6:00 PM",
-      guests: 200,
-      amount: 45000,
-      status: "pending",
-      phone: "+91 9876543211",
-      email: "priya.sharma@email.com",
-      location: "Grand Palace, Mangalore",
-      requirements: "Vegetarian menu, South Indian cuisine preferred",
-    },
-    {
-      id: 2,
-      eventName: "Tech Corp Annual Meet",
-      clientName: "Rajesh Kumar",
-      date: "2025-03-20",
-      time: "12:00 PM",
-      guests: 150,
-      amount: 35000,
-      status: "confirmed",
-      phone: "+91 9876543212",
-      email: "rajesh@techcorp.com",
-      location: "Business Hub, Bangalore",
-      requirements: "Mixed menu, coffee breaks included",
-    },
-    {
-      id: 3,
-      eventName: "Birthday Celebration",
-      clientName: "Anita Patel",
-      date: "2025-02-28",
-      time: "7:00 PM",
-      guests: 50,
-      amount: 15000,
-      status: "completed",
-      phone: "+91 9876543213",
-      email: "anita.patel@email.com",
-      location: "Home, Udupi",
-      requirements: "Kids-friendly menu, cake included",
-    },
-    {
-      id: 4,
-      eventName: "Anniversary Party",
-      clientName: "Suresh Nair",
-      date: "2025-04-10",
-      time: "8:00 PM",
-      guests: 80,
-      amount: 25000,
-      status: "pending",
-      phone: "+91 9876543214",
-      email: "suresh.nair@email.com",
-      location: "Heritage Hotel, Mangalore",
-      requirements: "Romantic setup, special anniversary cake",
-    },
-  ];
-  const [recentBookings, setRecentBookings] = useState(initialRecentBookings);
+  const handleProfileUpdate = async (profileForm) => {
+    const vendorId = sessionStorage.getItem("vendorId");
+    const payload = buildUpdatePayload(profileForm);
+
+    await updateVendorProfile(vendorId, payload);
+
+    // Refresh profile from backend
+    const refreshed = await getVendorProfile(vendorId);
+
+    const dto = refreshed.data;
+    setVendorProfile((prev) => ({
+      ...prev,
+      name: dto.businessName || prev.name,
+      description: dto.businessDescription || prev.description,
+      phone: dto.businessPhone || prev.phone,
+      email: dto.businessEmail || prev.email,
+      experience: dto.yearsOfExperience
+        ? `${dto.yearsOfExperience} years`
+        : prev.experience,
+      location: [dto.city, dto.state].filter(Boolean).join(", "),
+    }));
+  };
+
+  const handleServiceRequestAction = async (vendorRequestId, action) => {
+    try {
+      await respondToServiceRequest(vendorRequestId, action);
+
+      // Optimistic UI update
+      setPendingRequests((prev) =>
+        prev.filter((r) => r.vendorRequestId !== vendorRequestId)
+      );
+
+      // Reload confirmed bookings (accepted requests create bookings)
+      const vendorId = sessionStorage.getItem("vendorId");
+      const refreshed = await getVendorBookings(vendorId);
+      setConfirmedBookings(refreshed.data || []);
+
+      setAlertMessage(`Request ${action.toLowerCase()} successfully`);
+      setShowAlert(true);
+      setTimeout(() => setShowAlert(false), 3000);
+    } catch (err) {
+      console.error("Failed to respond to request", err);
+    }
+  };
+
+
+  // // The rest of your original code (booking handlers etc.) stays same
+  // const initialRecentBookings = [
+  //   {
+  //     id: 1,
+  //     eventName: "Sharma Wedding",
+  //     clientName: "Priya Sharma",
+  //     date: "2025-03-15",
+  //     time: "6:00 PM",
+  //     guests: 200,
+  //     amount: 45000,
+  //     status: "pending",
+  //     phone: "+91 9876543211",
+  //     email: "priya.sharma@email.com",
+  //     location: "Grand Palace, Mangalore",
+  //     requirements: "Vegetarian menu, South Indian cuisine preferred",
+  //   },
+  //   {
+  //     id: 2,
+  //     eventName: "Tech Corp Annual Meet",
+  //     clientName: "Rajesh Kumar",
+  //     date: "2025-03-20",
+  //     time: "12:00 PM",
+  //     guests: 150,
+  //     amount: 35000,
+  //     status: "confirmed",
+  //     phone: "+91 9876543212",
+  //     email: "rajesh@techcorp.com",
+  //     location: "Business Hub, Bangalore",
+  //     requirements: "Mixed menu, coffee breaks included",
+  //   },
+  //   {
+  //     id: 3,
+  //     eventName: "Birthday Celebration",
+  //     clientName: "Anita Patel",
+  //     date: "2025-02-28",
+  //     time: "7:00 PM",
+  //     guests: 50,
+  //     amount: 15000,
+  //     status: "completed",
+  //     phone: "+91 9876543213",
+  //     email: "anita.patel@email.com",
+  //     location: "Home, Udupi",
+  //     requirements: "Kids-friendly menu, cake included",
+  //   },
+  //   {
+  //     id: 4,
+  //     eventName: "Anniversary Party",
+  //     clientName: "Suresh Nair",
+  //     date: "2025-04-10",
+  //     time: "8:00 PM",
+  //     guests: 80,
+  //     amount: 25000,
+  //     status: "pending",
+  //     phone: "+91 9876543214",
+  //     email: "suresh.nair@email.com",
+  //     location: "Heritage Hotel, Mangalore",
+  //     requirements: "Romantic setup, special anniversary cake",
+  //   },
+  // ];
+
   const [statusFilter, setStatusFilter] = useState("all");
 
   const handleBookingAction = (bookingId, action) => {
@@ -279,10 +389,10 @@ const VendorDashboard = () => {
     };
     const newStatus = statusMap[action] || null;
     if (newStatus) {
-      setRecentBookings((prev) =>
-        prev.map((b) => (b.id === bookingId ? { ...b, status: newStatus } : b))
+     setConfirmedBookings((prev) =>
+        prev.map((b) => (b.bookingId === bookingId ? { ...b, status: newStatus } : b))
       );
-      if (selectedBooking && selectedBooking.id === bookingId)
+      if (selectedBooking && selectedBooking.bookingId === bookingId)
         setSelectedBooking({ ...selectedBooking, status: newStatus });
     }
     setAlertMessage(`Booking ${action} successfully!`);
@@ -322,8 +432,8 @@ const VendorDashboard = () => {
 
   const visibleBookings =
     statusFilter === "all"
-      ? recentBookings
-      : recentBookings.filter((b) => b.status === statusFilter);
+      ? confirmedBookings
+      : confirmedBookings.filter((b) => b.status === statusFilter);
   const pendingCount = visibleBookings.filter(
     (b) => b.status === "pending"
   ).length;
@@ -477,14 +587,14 @@ const VendorDashboard = () => {
                     <div className="d-flex justify-content-between align-items-center mb-2">
                       <span>Completed Bookings</span>
                       <span className="fw-bold">
-                        {completedCount}/{recentBookings.length}
+                        {completedCount}/{confirmedBookings.length}
                       </span>
                     </div>
                     <ProgressBar
                       variant="success"
                       now={
-                        recentBookings.length
-                          ? (completedCount / recentBookings.length) * 100
+                        confirmedBookings.length
+                          ? (completedCount / confirmedBookings.length) * 100
                           : 0
                       }
                       className="mb-3"
@@ -494,14 +604,14 @@ const VendorDashboard = () => {
                     <div className="d-flex justify-content-between align-items-center mb-2">
                       <span>Pending Bookings</span>
                       <span className="fw-bold">
-                        {pendingCount}/{recentBookings.length}
+                        {pendingCount}/{confirmedBookings.length}
                       </span>
                     </div>
                     <ProgressBar
                       variant="warning"
                       now={
-                        recentBookings.length
-                          ? (pendingCount / recentBookings.length) * 100
+                        confirmedBookings.length
+                          ? (pendingCount / confirmedBookings.length) * 100
                           : 0
                       }
                       className="mb-3"
@@ -511,14 +621,14 @@ const VendorDashboard = () => {
                     <div className="d-flex justify-content-between align-items-center mb-2">
                       <span>Cancelled Bookings</span>
                       <span className="fw-bold">
-                        {cancelledCount}/{recentBookings.length}
+                        {cancelledCount}/{confirmedBookings.length}
                       </span>
                     </div>
                     <ProgressBar
                       variant="danger"
                       now={
-                        recentBookings.length
-                          ? (cancelledCount / recentBookings.length) * 100
+                        confirmedBookings.length
+                          ? (cancelledCount / confirmedBookings.length) * 100
                           : 0
                       }
                     />
@@ -566,90 +676,97 @@ const VendorDashboard = () => {
             </>
           }
         >
+          {/* Pending Requests */}
+          <Card className="card-modern border-0 shadow-sm mb-4">
+            <Card.Header className="bg-transparent border-0">
+              <h5 className="mb-0 text-warning">
+                Pending Requests ({pendingRequests.length})
+              </h5>
+            </Card.Header>
+            <Card.Body>
+              {pendingRequests.length === 0 ? (
+                <p className="text-muted mb-0">No pending requests</p>
+              ) : (
+                pendingRequests.map((req) => (
+                  <div
+                    key={req.vendorRequestId}
+                    className="d-flex justify-content-between align-items-center border-bottom py-3"
+                  >
+                    <div>
+                      <strong>{req.eventName}</strong>
+                      <br />
+                      <small className="text-muted">{req.eventDate}</small>
+                    </div>
+
+                    <strong className="text-success">
+                      ₹{req.proposedAmount.toLocaleString()}
+                    </strong>
+
+                    <div className="d-flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="success"
+                        onClick={() =>
+                          handleServiceRequestAction(
+                            req.vendorRequestId,
+                            "ACCEPTED"
+                          )
+                        }
+                      >
+                        Accept
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        onClick={() =>
+                          handleServiceRequestAction(
+                            req.vendorRequestId,
+                            "REJECTED"
+                          )
+                        }
+                      >
+                        Reject
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </Card.Body>
+          </Card>
+
+          {/* Confirmed Bookings */}
           <Card className="card-modern border-0 shadow-sm">
             <Card.Header className="bg-transparent border-0">
-              <div className="d-flex justify-content-between align-items-center">
-                <h5 className="mb-0">Recent Bookings</h5>
-                <div className="d-flex align-items-center gap-2">
-                  <Form.Select
-                    size="sm"
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    style={{ width: "160px" }}
-                  >
-                    <option value="all">All</option>
-                    <option value="pending">Pending</option>
-                    <option value="confirmed">Confirmed</option>
-                    <option value="completed">Completed</option>
-                    <option value="cancelled">Cancelled</option>
-                  </Form.Select>
-                  <Badge bg="warning">{pendingCount} Pending</Badge>
-                  <Badge bg="success">{confirmedCount} Confirmed</Badge>
-                </div>
-              </div>
+              <h5 className="mb-0 text-success">
+                Confirmed Bookings ({confirmedBookings.length})
+              </h5>
             </Card.Header>
             <Card.Body className="p-0">
               <Table responsive hover className="mb-0">
                 <thead className="bg-light">
                   <tr>
-                    <th>Event Details</th>
-                    <th>Client</th>
-                    <th>Date & Time</th>
+                    <th>Event</th>
+                    <th>Date</th>
                     <th>Guests</th>
                     <th>Amount</th>
-                    <th>Status</th>
-                    <th>Actions</th>
+                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {visibleBookings.map((booking) => (
-                    <tr key={booking.id}>
-                      <td>
-                        <div>
-                          <strong>{booking.eventName}</strong>
-                          <br />
-                          <small className="text-muted">
-                            {booking.location}
-                          </small>
-                        </div>
-                      </td>
-                      <td>
-                        <div>
-                          <strong>{booking.clientName}</strong>
-                          <br />
-                          <small className="text-muted">{booking.phone}</small>
-                        </div>
-                      </td>
-                      <td>
-                        <div>
-                          <strong>{booking.date}</strong>
-                          <br />
-                          <small className="text-muted">{booking.time}</small>
-                        </div>
-                      </td>
-                      <td>
-                        <Badge bg="info">{booking.guests} guests</Badge>
-                      </td>
-                      <td>
-                        <strong className="text-success">
-                          ₹{booking.amount.toLocaleString()}
-                        </strong>
-                      </td>
-                      <td>
-                        <Badge
-                          bg={getStatusColor(booking.status)}
-                          className="d-flex align-items-center gap-1"
-                        >
-                          {getStatusIcon(booking.status)}
-                          {booking.status}
-                        </Badge>
+                  {confirmedBookings.map((b) => (
+                    <tr key={b.bookingId}>
+                      <td>{b.eventName}</td>
+                      <td>{b.eventDate}</td>
+                      <td>{b.guestCount}</td>
+                      <td className="text-success">
+                        ₹{b.amount.toLocaleString()}
                       </td>
                       <td>
                         <Button
-                          variant="outline-primary"
                           size="sm"
+                          variant="outline-primary"
                           onClick={() => {
-                            setSelectedBooking(booking);
+                            setSelectedBooking(b);
                             setShowBookingModal(true);
                           }}
                         >
@@ -801,13 +918,13 @@ const VendorDashboard = () => {
                   <strong>Event:</strong> {selectedBooking.eventName}
                 </p>
                 <p>
-                  <strong>Date:</strong> {selectedBooking.date}
+                  <strong>Date:</strong> {selectedBooking.eventDate}
                 </p>
                 <p>
-                  <strong>Time:</strong> {selectedBooking.time}
+                  <strong>Time:</strong> {selectedBooking.eventTime}
                 </p>
                 <p>
-                  <strong>Guests:</strong> {selectedBooking.guests}
+                  <strong>Guests:</strong> {selectedBooking.guestCount}
                 </p>
                 <p>
                   <strong>Location:</strong> {selectedBooking.location}
@@ -832,7 +949,9 @@ const VendorDashboard = () => {
                   <strong>Email:</strong> {selectedBooking.email}
                 </p>
                 <h6 className="mt-3">Special Requirements:</h6>
-                <p className="text-muted">{selectedBooking.requirements}</p>
+                <p className="text-muted">
+                  {selectedBooking.requirements || "N/A"}
+                </p>
               </Col>
             </Row>
           )}
@@ -849,7 +968,7 @@ const VendorDashboard = () => {
               <Button
                 variant="danger"
                 onClick={() =>
-                  handleBookingAction(selectedBooking.id, "declined")
+                  handleBookingAction(selectedBooking.bookingId, "declined")
                 }
               >
                 Decline
@@ -857,7 +976,7 @@ const VendorDashboard = () => {
               <Button
                 variant="success"
                 onClick={() =>
-                  handleBookingAction(selectedBooking.id, "accepted")
+                  handleBookingAction(selectedBooking.bookingId, "accepted")
                 }
               >
                 Accept
@@ -1025,19 +1144,19 @@ const VendorDashboard = () => {
             variant="primary"
             onClick={() => {
               if (!profileForm) return;
-              const updated = {
-                ...vendorProfile,
-                ...profileForm,
-                services: (profileForm.services || "")
-                  .split(",")
-                  .map((s) => s.trim())
-                  .filter(Boolean),
-              };
-              setVendorProfile(updated);
-              setShowProfileModal(false);
-              setAlertMessage("Profile updated successfully!");
-              setShowAlert(true);
-              setTimeout(() => setShowAlert(false), 3000);
+              try {
+                handleProfileUpdate(profileForm);
+                setShowProfileModal(false);
+                setAlertMessage("Profile updated successfully!");
+                setShowAlert(true);
+                setTimeout(() => setShowAlert(false), 3000);
+              } catch (err) {
+                console.error("Profile update failed", err);
+                setAlertMessage(
+                  err?.response?.data || "Failed to update profile"
+                );
+                setShowAlert(true);
+              }
             }}
           >
             Save Changes

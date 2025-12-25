@@ -56,7 +56,6 @@ const BookingModal = ({
   const navigate = useNavigate();
 
   useEffect(() => {
-    // when modal opens or parent props change, prefill fields
     if (show) {
       setBookingData((prev) => ({
         ...prev,
