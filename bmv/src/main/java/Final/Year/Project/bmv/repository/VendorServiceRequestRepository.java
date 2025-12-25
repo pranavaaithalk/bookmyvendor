@@ -9,5 +9,6 @@ import java.util.List;
 @Repository
 public interface VendorServiceRequestRepository extends JpaRepository<VendorServiceRequest, Long> {
     List<VendorServiceRequest> findByVendor_VendorIdAndStatus(Long vendorId, VendorServiceRequest.Status status);
+    List<VendorServiceRequest> findByVendor_VendorId(Long vendorId);
 }
 

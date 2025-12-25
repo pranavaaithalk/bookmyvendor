@@ -174,7 +174,7 @@ public class VendorController {
             existing.setUpdatedAt(java.time.LocalDateTime.now());
 
             VendorProfile updatedProfile = vendorProfileService.updateVendorProfile(vendorId, existing);
-            return ResponseEntity.ok(updatedProfile);
+            return ResponseEntity.ok(VendorProfileDto.from(updatedProfile,null));
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.internalServerError().body("Error updating vendor profile: " + e.getMessage());

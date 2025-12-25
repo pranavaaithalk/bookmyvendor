@@ -29,6 +29,10 @@ public class VendorServiceRequestService {
                 .orElseThrow(() -> new RuntimeException("VendorServiceRequest not found: " + id));
     }
 
+    public List<VendorServiceRequest> getRequestsForVendor(Long vendorId) {
+        return vendorServiceRequestRepository.findByVendor_VendorId(vendorId);
+    }
+
     public VendorServiceRequest updateVendorServiceRequest(Long id, VendorServiceRequest vendorServiceRequestDetails) {
         VendorServiceRequest existing = getVendorServiceRequestById(id);
         existing.setServiceRequest(vendorServiceRequestDetails.getServiceRequest());

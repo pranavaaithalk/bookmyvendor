@@ -26,6 +26,10 @@ public class BookingService {
                 .orElseThrow(() -> new RuntimeException("Bookings not found: " + id));
     }
 
+    public List<Bookings> getBookingsForVendor(Long vendorId) {
+        return bookingsRepository.findByVendor_VendorId(vendorId);
+    }
+
     public Bookings updateBookings(Long id, Bookings bookingsDetails) {
         Bookings existing = getBookingsById(id);
         existing.setEvent(bookingsDetails.getEvent());

@@ -101,10 +101,9 @@ public class EventsController {
 
     // Vendor responds to a service request [expect: vendorRequestId, response (ACCEPTED/REJECTED)]
     // Vendor responds to a service request [expect: vendorRequestId, response (ACCEPTED/REJECTED)]
-    @PostMapping("/respond-service-request")
-    public ResponseEntity<String> respondServiceRequest(@RequestBody Map<String, String> map) {
-        VendorServiceRequest vsr = vendorServiceRequestService.getVendorServiceRequestById(
-                Long.parseLong(map.get("vendorRequestId")));
+    @PostMapping("/respond-service-request/{vrId}")
+    public ResponseEntity<String> respondServiceRequest(@PathVariable Long vrId,@RequestBody Map<String, String> map) {
+        VendorServiceRequest vsr = vendorServiceRequestService.getVendorServiceRequestById(vrId);
         vsr.setStatus(VendorServiceRequest.Status.valueOf(map.get("response").toUpperCase()));
         vsr.setUpdatedAt(LocalDateTime.now());
         vendorServiceRequestService.updateVendorServiceRequest(vsr.getVendorRequestId(), vsr);
