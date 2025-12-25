@@ -64,11 +64,11 @@ export const getVendorBookings = async (vendorId) => {
 };
 
 export const getVendorServiceRequests = async (vendorId) => {
-  const resp = axios.get(`${BASE_URL}/bookings/vendor/${vendorId}`);
+  const resp = axios.get(`${BASE_URL}/bookings/serviceRequests/${vendorId}`);
   console.log('Service Requests Response:', resp);
   return resp;
 };
 
 export const respondToServiceRequest = (vendorRequestId, response) => {
   return axios.post(`${BASE_URL}/events/respond-service-request/${vendorRequestId}`, response);
-}
+};
