@@ -34,6 +34,7 @@ import {
   FaCheckCircle,
   FaTimesCircle,
   FaHourglassHalf,
+  FaSignOutAlt,
 } from "react-icons/fa";
 import {
   getVendorProfile,
@@ -58,7 +59,8 @@ const VendorDashboard = () => {
 
   // Vendor profile state (editable)
   const [vendorProfile, setVendorProfile] = useState({
-    name: "",
+    uname: "",
+    bname: "",
     category: "",
     rating: 0,
     reviews: 0,
@@ -139,7 +141,8 @@ const VendorDashboard = () => {
         }
 
         // Map DTO -> UI shape
-        const name =
+        const uname = dto.username || dto.uname || dto.userName || "Unknown";
+        const bname =
           dto.businessName ||
           dto.business_name ||
           dto.business_name ||
@@ -211,7 +214,8 @@ const VendorDashboard = () => {
 
         // Final UI vendorProfile object
         const mapped = {
-          name,
+          uname,
+          bname,
           category:
             (dto.vendorServices &&
               dto.vendorServices[0] &&
@@ -318,67 +322,6 @@ const VendorDashboard = () => {
     }
   };
 
-
-  // // The rest of your original code (booking handlers etc.) stays same
-  // const initialRecentBookings = [
-  //   {
-  //     id: 1,
-  //     eventName: "Sharma Wedding",
-  //     clientName: "Priya Sharma",
-  //     date: "2025-03-15",
-  //     time: "6:00 PM",
-  //     guests: 200,
-  //     amount: 45000,
-  //     status: "pending",
-  //     phone: "+91 9876543211",
-  //     email: "priya.sharma@email.com",
-  //     location: "Grand Palace, Mangalore",
-  //     requirements: "Vegetarian menu, South Indian cuisine preferred",
-  //   },
-  //   {
-  //     id: 2,
-  //     eventName: "Tech Corp Annual Meet",
-  //     clientName: "Rajesh Kumar",
-  //     date: "2025-03-20",
-  //     time: "12:00 PM",
-  //     guests: 150,
-  //     amount: 35000,
-  //     status: "confirmed",
-  //     phone: "+91 9876543212",
-  //     email: "rajesh@techcorp.com",
-  //     location: "Business Hub, Bangalore",
-  //     requirements: "Mixed menu, coffee breaks included",
-  //   },
-  //   {
-  //     id: 3,
-  //     eventName: "Birthday Celebration",
-  //     clientName: "Anita Patel",
-  //     date: "2025-02-28",
-  //     time: "7:00 PM",
-  //     guests: 50,
-  //     amount: 15000,
-  //     status: "completed",
-  //     phone: "+91 9876543213",
-  //     email: "anita.patel@email.com",
-  //     location: "Home, Udupi",
-  //     requirements: "Kids-friendly menu, cake included",
-  //   },
-  //   {
-  //     id: 4,
-  //     eventName: "Anniversary Party",
-  //     clientName: "Suresh Nair",
-  //     date: "2025-04-10",
-  //     time: "8:00 PM",
-  //     guests: 80,
-  //     amount: 25000,
-  //     status: "pending",
-  //     phone: "+91 9876543214",
-  //     email: "suresh.nair@email.com",
-  //     location: "Heritage Hotel, Mangalore",
-  //     requirements: "Romantic setup, special anniversary cake",
-  //   },
-  // ];
-
   const [statusFilter, setStatusFilter] = useState("all");
 
   const handleBookingAction = (bookingId, action) => {
@@ -430,20 +373,20 @@ const VendorDashboard = () => {
     }
   };
 
-  const visibleBookings =
-    statusFilter === "all"
-      ? confirmedBookings
-      : confirmedBookings.filter((b) => b.status === statusFilter);
-  const pendingCount = visibleBookings.filter(
-    (b) => b.status === "pending"
-  ).length;
-  const confirmedCount = visibleBookings.filter(
+  const handleLogout = () => {
+    sessionStorage.removeItem("vendorId");
+    navigate("/auth");
+  };
+
+  const totalBookings = confirmedBookings.length;
+  const pendingCount = pendingRequests.length;
+  const confirmedCount = confirmedBookings.filter(
     (b) => b.status === "confirmed"
   ).length;
-  const completedCount = visibleBookings.filter(
+  const completedCount = confirmedBookings.filter(
     (b) => b.status === "completed"
   ).length;
-  const cancelledCount = visibleBookings.filter(
+  const cancelledCount = confirmedBookings.filter(
     (b) => b.status === "cancelled"
   ).length;
 
@@ -500,33 +443,13 @@ const VendorDashboard = () => {
           <div>
             <h1 className="mb-0 gradient-text">Vendor Dashboard</h1>
             <p className="text-muted">
-              Welcome back, {vendorProfile.name || "Vendor"}
+              Welcome back, {vendorProfile.uname || "Vendor"}
             </p>
           </div>
           <div className="d-flex gap-2">
-            <Button
-              variant="outline-primary"
-              onClick={() => {
-                setProfileForm({
-                  name: vendorProfile.name,
-                  category: vendorProfile.category,
-                  location: vendorProfile.location,
-                  phone: vendorProfile.phone,
-                  email: vendorProfile.email,
-                  experience: vendorProfile.experience,
-                  description: vendorProfile.description,
-                  services: vendorProfile.services.join(", "),
-                  priceRange: vendorProfile.priceRange,
-                });
-                setShowProfileModal(true);
-              }}
-            >
-              <FaEdit className="me-2" />
-              Edit Profile
-            </Button>
-            <Button variant="primary" className="btn-modern">
-              <FaDownload className="me-2" />
-              Export Data
+            <Button variant="primary" className="btn-modern" onClick={handleLogout}>
+              <FaSignOutAlt className="me-2" />
+              Logout
             </Button>
           </div>
         </div>
@@ -554,7 +477,7 @@ const VendorDashboard = () => {
               <StatCard
                 icon={FaCalendarAlt}
                 title="Total Bookings"
-                value={analytics.totalBookings}
+                value={totalBookings}
                 color="#6366f1"
               />
             </Col>
@@ -585,33 +508,16 @@ const VendorDashboard = () => {
                 <Card.Body>
                   <div className="mb-3">
                     <div className="d-flex justify-content-between align-items-center mb-2">
-                      <span>Completed Bookings</span>
-                      <span className="fw-bold">
-                        {completedCount}/{confirmedBookings.length}
-                      </span>
-                    </div>
-                    <ProgressBar
-                      variant="success"
-                      now={
-                        confirmedBookings.length
-                          ? (completedCount / confirmedBookings.length) * 100
-                          : 0
-                      }
-                      className="mb-3"
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <div className="d-flex justify-content-between align-items-center mb-2">
                       <span>Pending Bookings</span>
                       <span className="fw-bold">
-                        {pendingCount}/{confirmedBookings.length}
+                        {pendingCount}/{totalBookings}
                       </span>
                     </div>
                     <ProgressBar
-                      variant="warning"
+                      variant="danger"
                       now={
-                        confirmedBookings.length
-                          ? (pendingCount / confirmedBookings.length) * 100
+                        totalBookings
+                          ? (pendingCount / totalBookings) * 100
                           : 0
                       }
                       className="mb-3"
@@ -619,18 +525,35 @@ const VendorDashboard = () => {
                   </div>
                   <div>
                     <div className="d-flex justify-content-between align-items-center mb-2">
-                      <span>Cancelled Bookings</span>
+                      <span>Confirmed Bookings</span>
                       <span className="fw-bold">
-                        {cancelledCount}/{confirmedBookings.length}
+                        {confirmedCount}/{totalBookings}
                       </span>
                     </div>
                     <ProgressBar
-                      variant="danger"
+                      variant="warning"
                       now={
-                        confirmedBookings.length
-                          ? (cancelledCount / confirmedBookings.length) * 100
+                        totalBookings
+                          ? (confirmedCount / totalBookings) * 100
                           : 0
                       }
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <div className="d-flex justify-content-between align-items-center mb-2">
+                      <span>Completed Bookings</span>
+                      <span className="fw-bold">
+                        {completedCount}/{totalBookings}
+                      </span>
+                    </div>
+                    <ProgressBar
+                      variant="success"
+                      now={
+                        totalBookings
+                          ? (completedCount / totalBookings) * 100
+                          : 0
+                      }
+                      className="mb-3"
                     />
                   </div>
                 </Card.Body>
@@ -800,7 +723,7 @@ const VendorDashboard = () => {
                   <Row>
                     <Col md={6} className="mb-3">
                       <strong>Business Name:</strong>
-                      <p className="text-muted">{vendorProfile.name}</p>
+                      <p className="text-muted">{vendorProfile.bname}</p>
                     </Col>
                     <Col md={6} className="mb-3">
                       <strong>Category:</strong>

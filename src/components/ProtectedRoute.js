@@ -2,11 +2,21 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 
 const ProtectedRoute = ({ children, userType }) => {
-  // Mock authentication check - in a real app, this would check actual auth state
-  const isAuthenticated = true;
+  
+  var isAuthenticated = false;
+  if (userType === 'client') {
+    const userId = sessionStorage.getItem('userId');
+    if (userId) {
+      isAuthenticated = true;
+    }
+  } else if (userType === 'vendor') {
+    const vendorId = sessionStorage.getItem('vendorId');
+    if (vendorId) {
+      isAuthenticated = true;
+    }
+  }
   
   if (!isAuthenticated) {
-    // Redirect to auth page with the required user type
     return <Navigate to={`/auth?type=${userType}`} replace />;
   }
   

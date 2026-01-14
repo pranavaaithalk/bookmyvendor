@@ -70,5 +70,8 @@ export const getVendorServiceRequests = async (vendorId) => {
 };
 
 export const respondToServiceRequest = (vendorRequestId, response) => {
-  return axios.post(`${BASE_URL}/events/respond-service-request/${vendorRequestId}`, response);
+  return axios.post(
+    `${BASE_URL}/events/respond-service-request/${vendorRequestId}`,
+    { response: response }
+  );
 };

@@ -2,7 +2,21 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Container, Row, Col, Card, Button, Badge, Modal, Tab, Tabs } from 'react-bootstrap';
 import { motion } from 'framer-motion';
-import { FaSearch, FaStar, FaHeart, FaEye, FaPhone, FaEnvelope, FaMapMarkerAlt, FaCalendarAlt, FaUsers, FaRupeeSign, FaExchangeAlt, FaClock } from 'react-icons/fa';
+import {
+  FaSearch,
+  FaStar,
+  FaHeart,
+  FaEye,
+  FaPhone,
+  FaEnvelope,
+  FaMapMarkerAlt,
+  FaCalendarAlt,
+  FaUsers,
+  FaRupeeSign,
+  FaExchangeAlt,
+  FaClock,
+  FaSignOutAlt,
+} from "react-icons/fa";
 import BookingModal from '../components/BookingModal';
 import ReviewSystem from '../components/ReviewSystem';
 
@@ -77,6 +91,11 @@ const Dashboard = () => {
     preferences: { vegOnly: false, maxBudget: 600000 },
     savedPaymentMethod: 'HDFC **** 9023'
   });
+
+  const handleLogout = () => {
+    sessionStorage.removeItem("userId");
+    navigate("/auth");
+  };
   
   // Helper: invoice download
   const downloadInvoice = (booking) => {
@@ -301,6 +320,12 @@ const Dashboard = () => {
           <div>
             <h1 className="mb-0 gradient-text">Plan Your Perfect Event</h1>
             <p className="text-muted">Find and book the best vendors for your special day</p>
+          </div>
+          <div className="d-flex gap-2">
+            <Button variant="primary" className="btn-modern" onClick={handleLogout}>
+              <FaSignOutAlt className="me-2" />
+              Logout
+            </Button>
           </div>
           {compareList.length > 0 && (
             <Button variant="warning" className="btn-modern">

@@ -17,22 +17,43 @@ function App() {
   return (
     <Router>
       <Header />
-      <div style={{ paddingTop: '80px' }}>{/* offset for fixed navbar */}
+      <div style={{ paddingTop: "80px" }}>
+        {/* offset for fixed navbar */}
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/auth" element={<Auth />} />
-          <Route path="/vendor-onboarding" element={<VendorOnboarding />} />
-          <Route path="/event-create" element={<EventCreation />} />
-          <Route path="/user-dashboard" element={
-            <ProtectedRoute userType="client">
-              <UserDashboard />
-            </ProtectedRoute>
-          } />
-          <Route path="/vendor-dashboard" element={
-            <ProtectedRoute userType="vendor">
-              <VendorDashboard />
-            </ProtectedRoute>
-          } />
+          <Route
+            path="/vendor-onboarding"
+            element={
+              <ProtectedRoute userType="vendor">
+                <VendorOnboarding />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/event-create"
+            element={
+              <ProtectedRoute userType="client">
+                <EventCreation />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/user-dashboard"
+            element={
+              <ProtectedRoute userType="client">
+                <UserDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/vendor-dashboard"
+            element={
+              <ProtectedRoute userType="vendor">
+                <VendorDashboard />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/about" element={<About />} />
           <Route path="/gallery" element={<Gallery />} />
           <Route path="/contact" element={<Contact />} />

@@ -28,87 +28,91 @@ const Header = () => {
   };
 
   return (
-    <motion.div
-      initial="hidden"
-      animate="visible"
-      variants={navVariants}
-    >
-      <Navbar 
-        expand="lg" 
-        fixed="top" 
-        className={`modern-navbar ${scrolled ? 'scrolled' : ''}`}
+    <motion.div initial="hidden" animate="visible" variants={navVariants}>
+      <Navbar
+        expand="lg"
+        fixed="top"
+        className={`modern-navbar ${scrolled ? "scrolled" : ""}`}
         style={{
-          background: scrolled 
-            ? 'rgba(255, 255, 255, 0.95)' 
-            : 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-          backdropFilter: scrolled ? 'blur(10px)' : 'none',
-          transition: 'all 0.3s ease',
-          padding: scrolled ? '8px 0' : '12px 0',
-          boxShadow: scrolled 
-            ? '0 4px 20px rgba(0, 0, 0, 0.1)' 
-            : '0 2px 10px rgba(0, 0, 0, 0.1)'
+          background: scrolled
+            ? "rgba(255, 255, 255, 0.95)"
+            : "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)",
+          backdropFilter: scrolled ? "blur(10px)" : "none",
+          transition: "all 0.3s ease",
+          padding: scrolled ? "8px 0" : "12px 0",
+          boxShadow: scrolled
+            ? "0 4px 20px rgba(0, 0, 0, 0.1)"
+            : "0 2px 10px rgba(0, 0, 0, 0.1)",
         }}
-        variant={scrolled ? 'light' : 'dark'}
+        variant={scrolled ? "light" : "dark"}
       >
         <Container>
-          <Navbar.Brand 
-            as={Link} 
-            to="/" 
+          <Navbar.Brand
+            as={Link}
+            to="/"
             style={{
-              fontSize: '28px', 
-              fontWeight: '700',
-              color: scrolled ? '#6366f1' : 'white',
-              textDecoration: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px'
+              fontSize: "28px",
+              fontWeight: "700",
+              color: scrolled ? "#6366f1" : "white",
+              textDecoration: "none",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
             }}
           >
-            <FaCalendarAlt style={{ fontSize: '24px' }} />
+            <FaCalendarAlt style={{ fontSize: "24px" }} />
             BookMyVendor
           </Navbar.Brand>
 
           <Navbar.Toggle aria-controls="responsive-navbar-nav" />
-          
+
           <Navbar.Collapse id="responsive-navbar-nav">
             <Nav className="ms-auto align-items-center">
-              <Nav.Link 
-                as={Link} 
-                to="/" 
-                className={`nav-link-modern ${location.pathname === '/' ? 'active' : ''}`}
-                style={{ color: scrolled ? '#1e293b' : 'white' }}
+              <Nav.Link
+                as={Link}
+                to="/"
+                className={`nav-link-modern ${
+                  location.pathname === "/" ? "active" : ""
+                }`}
+                style={{ color: scrolled ? "#1e293b" : "white" }}
               >
                 Home
               </Nav.Link>
-              <Nav.Link 
-                as={Link} 
-                to="/about" 
-                className={`nav-link-modern ${location.pathname === '/about' ? 'active' : ''}`}
-                style={{ color: scrolled ? '#1e293b' : 'white' }}
+              <Nav.Link
+                as={Link}
+                to="/about"
+                className={`nav-link-modern ${
+                  location.pathname === "/about" ? "active" : ""
+                }`}
+                style={{ color: scrolled ? "#1e293b" : "white" }}
               >
                 About
               </Nav.Link>
-              <Nav.Link 
-                as={Link} 
-                to="/gallery" 
-                className={`nav-link-modern ${location.pathname === '/gallery' ? 'active' : ''}`}
-                style={{ color: scrolled ? '#1e293b' : 'white' }}
+              <Nav.Link
+                as={Link}
+                to="/gallery"
+                className={`nav-link-modern ${
+                  location.pathname === "/gallery" ? "active" : ""
+                }`}
+                style={{ color: scrolled ? "#1e293b" : "white" }}
               >
                 Gallery
               </Nav.Link>
-              <Nav.Link 
-                as={Link} 
-                to="/contact" 
-                className={`nav-link-modern ${location.pathname === '/contact' ? 'active' : ''}`}
-                style={{ color: scrolled ? '#1e293b' : 'white' }}
+              <Nav.Link
+                as={Link}
+                to="/contact"
+                className={`nav-link-modern ${
+                  location.pathname === "/contact" ? "active" : ""
+                }`}
+                style={{ color: scrolled ? "#1e293b" : "white" }}
               >
                 Contact
               </Nav.Link>
-              
+
               <div className="d-flex gap-2 ms-3">
                 <Button
                   as={Link}
-                  to="/auth?type=client"
+                  to="/user-dashboard"
                   variant={scrolled ? "outline-primary" : "outline-light"}
                   size="sm"
                   className="btn-modern d-flex align-items-center gap-1"
@@ -118,7 +122,7 @@ const Header = () => {
                 </Button>
                 <Button
                   as={Link}
-                  to="/auth?type=vendor"
+                  to="/vendor-dashboard"
                   variant={scrolled ? "primary" : "light"}
                   size="sm"
                   className="btn-modern d-flex align-items-center gap-1"
@@ -136,7 +140,7 @@ const Header = () => {
         .modern-navbar {
           z-index: 1050;
         }
-        
+
         .nav-link-modern {
           font-weight: 500;
           margin: 0 8px;
@@ -145,14 +149,14 @@ const Header = () => {
           transition: all 0.3s ease;
           position: relative;
         }
-        
+
         .nav-link-modern:hover {
           background-color: rgba(255, 255, 255, 0.1);
           transform: translateY(-1px);
         }
-        
+
         .nav-link-modern.active::after {
-          content: '';
+          content: "";
           position: absolute;
           bottom: 0;
           left: 50%;
@@ -162,13 +166,13 @@ const Header = () => {
           background-color: #f59e0b;
           border-radius: 1px;
         }
-        
+
         .btn-modern {
           font-weight: 500;
           border-radius: 8px;
           transition: all 0.3s ease;
         }
-        
+
         .btn-modern:hover {
           transform: translateY(-1px);
         }
