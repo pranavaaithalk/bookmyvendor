@@ -104,7 +104,12 @@ public class EventsController {
     @PostMapping("/respond-service-request/{vrId}")
     public ResponseEntity<String> respondServiceRequest(@PathVariable Long vrId,@RequestBody Map<String, String> map) {
         VendorServiceRequest vsr = vendorServiceRequestService.getVendorServiceRequestById(vrId);
+        if(vsr==null){
+            System.out.println("\n\nRSR ERROR");
+            return ResponseEntity.badRequest().body("Error");
+        }
         vsr.setStatus(VendorServiceRequest.Status.valueOf(map.get("response").toUpperCase()));
+        System.out.println("\n\nStatus now: "+vsr.getStatus());
         vsr.setUpdatedAt(LocalDateTime.now());
         vendorServiceRequestService.updateVendorServiceRequest(vsr.getVendorRequestId(), vsr);
 
@@ -127,11 +132,10 @@ public class EventsController {
         // If accepted, CREATE BOOKING record
         if (vsr.getStatus() == VendorServiceRequest.Status.ACCEPTED) {
             Events event = vsr.getServiceRequest().getEvent();
-            VendorService vendorService = vendorServiceService.getVendorServiceById(vsr.getServiceRequest().getService().getServiceId()); // Vendor service matching requested service
             VendorProfile vendor = vsr.getVendor();
             Bookings booking = Bookings.builder()
                     .event(event)
-                    .vendorService(vendorService)
+                    .vendorServiceRequest(vsr)
                     .vendor(vendor)
                     .bookingDate(LocalDateTime.now())
                     .bookingStatus(Bookings.BookingStatus.CONFIRMED)
@@ -142,6 +146,16 @@ public class EventsController {
                     .updatedAt(LocalDateTime.now())
                     .build();
             bookingsService.createBookings(booking);
+            Notifications notification = Notifications.builder()
+                    .user(event.getClient())
+                    .title("Update")
+                    .message("Vendor accepted service request for " + event.getTitle())
+                    .notificationType("VENDOR_ACCEPT")
+                    .referenceId(event.getEventId())
+                    .isRead(false)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            notificationsService.createNotification(notification);
 
             return ResponseEntity.ok("Vendor accepted and booking confirmed.");
         }

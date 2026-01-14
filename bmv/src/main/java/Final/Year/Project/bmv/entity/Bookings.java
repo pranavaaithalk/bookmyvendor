@@ -22,8 +22,8 @@ public class Bookings {
     private Events event;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "vendor_service_id", nullable = false)
-    private VendorService vendorService;
+    @JoinColumn(name = "vendor_request_id", nullable = false)
+    private VendorServiceRequest vendorServiceRequest;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "vendor_id", nullable = false)

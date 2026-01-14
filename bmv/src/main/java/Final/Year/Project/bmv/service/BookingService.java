@@ -33,7 +33,7 @@ public class BookingService {
     public Bookings updateBookings(Long id, Bookings bookingsDetails) {
         Bookings existing = getBookingsById(id);
         existing.setEvent(bookingsDetails.getEvent());
-        existing.setVendorService(bookingsDetails.getVendorService());
+        existing.setVendorServiceRequest(bookingsDetails.getVendorServiceRequest());
         existing.setVendor(bookingsDetails.getVendor());
         existing.setBookingDate(bookingsDetails.getBookingDate());
         existing.setBookingStatus(bookingsDetails.getBookingStatus());

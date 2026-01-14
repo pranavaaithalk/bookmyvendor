@@ -6,6 +6,7 @@ import java.util.List;
 public class VendorProfileDto {
     private Long vendorId;
     private String businessName;
+    private String userName;
     private String businessDescription;
     private String businessAddress;
     private String city;
@@ -25,6 +26,7 @@ public class VendorProfileDto {
 
     public VendorProfileDto(Long vendorId,
                             String businessName,
+                            String userName,
                             String businessDescription,
                             String businessAddress,
                             String city,
@@ -41,6 +43,7 @@ public class VendorProfileDto {
                             List<VendorServiceDto> vendorServices) {
         this.vendorId = vendorId;
         this.businessName = businessName;
+        this.userName = userName;
         this.businessDescription = businessDescription;
         this.businessAddress = businessAddress;
         this.city = city;
@@ -60,6 +63,7 @@ public class VendorProfileDto {
     // getters
     public Long getVendorId() { return vendorId; }
     public String getBusinessName() { return businessName; }
+    public String getUserName() { return userName; }
     public String getBusinessDescription() { return businessDescription; }
     public String getBusinessAddress() { return businessAddress; }
     public String getCity() { return city; }
@@ -85,6 +89,7 @@ public class VendorProfileDto {
         return new VendorProfileDto(
                 vp.getVendorId(),
                 vp.getBusinessName(),
+                vp.getUser().getFirstName(),
                 vp.getBusinessDescription(),
                 vp.getBusinessAddress(),
                 vp.getCity(),
