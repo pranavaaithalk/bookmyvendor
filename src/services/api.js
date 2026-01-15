@@ -75,3 +75,56 @@ export const respondToServiceRequest = (vendorRequestId, response) => {
     { response: response }
   );
 };
+
+export const getClientEventDetails = async (cId) => {
+  const resp = await axios.get(`${BASE_URL}/events/client/${cId}`);
+  return resp;
+};
+
+export const getClientProfile = async (clientId) => {
+  const resp = await axios.get(`${BASE_URL}/users/${clientId}`);
+  return resp;
+}
+
+export const updateClientProfile = async (clientId, payload) => {
+  return axios.put(`${BASE_URL}/users/${clientId}`, payload, {
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+};
+
+export const confirmEvent = async (eventId) => {
+  const resp = await axios.post(`${BASE_URL}/events/confirm`, { eventId : eventId });
+  return resp;
+};
+
+export const getEventDetails = async (eventId) => {
+  const resp = await axios.get(
+    `${BASE_URL}/events/eventDetailsResp/${eventId}`
+  );
+  return resp;
+};
+
+export const getFreshVendorsForRequest = async (rId,city,gCount)=>{
+  const resp = await axios.get(`${BASE_URL}/events/next-top-vendors`, {
+    params: { requestId: rId, city: city, guestCount: gCount },
+  });
+  return resp;
+};
+
+export const sendFreshVendorRequest = async (payload) => {
+  const resp = await axios.post(
+    `${BASE_URL}/events/create-fresh-request`,
+    payload
+  );
+  return resp;
+};
+
+export const submitReviews = async (eventId,payload) => {
+  const resp = await axios.post(
+    `${BASE_URL}/events/complete/${eventId}`,
+    payload
+  );
+  return resp;
+};

@@ -12,6 +12,7 @@ import About from './pages/About';
 import Gallery from './pages/Gallery';
 import Contact from './pages/Contact';
 import Events from './pages/Events';
+import EventDetailsPage from './components/EventDetailsPage';
 
 function App() {
   return (
@@ -22,10 +23,11 @@ function App() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/event-details*" element={<ProtectedRoute userType="client"><EventDetailsPage /></ProtectedRoute>} />
           <Route
             path="/vendor-onboarding"
             element={
-              <ProtectedRoute userType="vendor">
+              <ProtectedRoute userType="client">
                 <VendorOnboarding />
               </ProtectedRoute>
             }

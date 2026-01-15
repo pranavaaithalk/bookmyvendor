@@ -45,6 +45,10 @@ const Auth = () => {
       } else if(response.status === 200 && response.data.userType === 'vendor') {
         sessionStorage.setItem("userId", response?.data?.userId);
         sessionStorage.setItem("vendorId", response?.data?.vendorId);
+        if(response.data.vendorId === -1){
+          navigate('/vendor-onboarding');
+          return;
+        }
         navigate('/vendor-dashboard');
       }
     }catch(error){

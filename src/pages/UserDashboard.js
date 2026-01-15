@@ -1,6 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
-import { Container, Row, Col, Card, Button, Badge, Modal, Tab, Tabs } from 'react-bootstrap';
+import {
+  Container,
+  Row,
+  Col,
+  Card,
+  Button,
+  Badge,
+  Modal,
+  Tab,
+  Tabs,
+  Form,
+  Alert,
+} from "react-bootstrap";
 import { motion } from 'framer-motion';
 import {
   FaSearch,
@@ -16,9 +28,16 @@ import {
   FaExchangeAlt,
   FaClock,
   FaSignOutAlt,
+  FaUser,
+  FaCheckCircle,
 } from "react-icons/fa";
 import BookingModal from '../components/BookingModal';
 import ReviewSystem from '../components/ReviewSystem';
+import {
+  getClientEventDetails,
+  getClientProfile,
+  updateClientProfile,
+} from "../services/api";
 
 // const servicesList = [
 //   { name: "Catering", key: "catering", icon: "🍽️", color: "#f59e0b" },
@@ -64,6 +83,10 @@ const Dashboard = () => {
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [bookingVendor, setBookingVendor] = useState(null);
   const [vendorReviews, setVendorReviews] = useState({});
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [profileForm, setProfileForm] = useState(null);
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertMessage, setAlertMessage] = useState("");
   
   // Additional dashboard data
   const [events, setEvents] = useState([
@@ -83,19 +106,80 @@ const Dashboard = () => {
     { id: 'N-2', type: 'confirmation', text: 'Spicy Spoon Caterers confirmed your booking.', time: '1d ago', unread: false },
   ]);
   // Messages removed per requirement
-  const [userProfile, setUserProfile] = useState({
-    name: 'Anita Sharma',
-    email: 'anita@example.com',
-    phone: '+91 98765 43210',
-    city: 'Mangalore',
-    preferences: { vegOnly: false, maxBudget: 600000 },
-    savedPaymentMethod: 'HDFC **** 9023'
-  });
+  const [userProfile, setUserProfile] = useState(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [eventDetails, setEventDetails] = useState([]);
+  const [totalEvents, setTotalEvents] = useState(0);
+  const [activeEvents, setActiveEvents] = useState([]);
+  const [compEvents, setCompEvents] = useState([]);
+
 
   const handleLogout = () => {
     sessionStorage.removeItem("userId");
     navigate("/auth");
   };
+
+  const handleProfileUpdate = async (form) => {
+    const userId = sessionStorage.getItem("userId");
+
+    const payload = {
+      firstName: form.firstName,
+      lastName: form.lastName,
+      phone: form.phone,
+    };
+    try{
+    const res = await updateClientProfile(userId, payload);
+    } catch(err){
+      console.error("Profile update failed", err);
+      setAlertMessage("Failed to update profile. Please try again.");
+      setShowAlert(true);
+      return;
+    }
+    setUserProfile((prev) => ({
+      ...prev,
+      ...payload,
+      fullName: `${payload.firstName} ${payload.lastName}`,
+    }));
+  };
+
+  useEffect(() => {
+    const userId = sessionStorage.getItem("userId");
+
+    if (!userId) {
+      navigate("/auth");
+      return;
+    }
+
+    const loadClientProfile = async () => {
+      try {
+        const res = await getClientProfile(userId);
+        setUserProfile(res.data);
+      } catch (err) {
+        console.error("Failed to load client profile", err);
+        navigate("/auth");
+      } finally {
+        setLoadingProfile(false);
+      }
+    };
+
+    const loadEventDetails = async () => {
+      try {
+        const res = await getClientEventDetails(userId);
+        console.log('Event Details Response:', JSON.stringify(res.data));
+        setEventDetails(res.data);
+        setTotalEvents(res.data.length);
+        setActiveEvents(res.data.filter(e => e.status !== 'completed'));
+        setCompEvents(res.data.filter(e => e.status === 'completed'));
+      } catch (err) {
+        console.error("Failed to load event details", err);
+      }
+    };
+
+    loadClientProfile();
+    loadEventDetails();
+  }, [navigate]);
+
+
   
   // Helper: invoice download
   const downloadInvoice = (booking) => {
@@ -309,6 +393,19 @@ const Dashboard = () => {
     </motion.div>
   );
 
+  if (loadingProfile) {
+    return (
+      <Container className="my-5 text-center">
+        <h5>Loading your dashboard...</h5>
+      </Container>
+    );
+  }
+
+  if (!userProfile) {
+    return null;
+  }
+
+
   return (
     <Container className="my-4 fade-in">
       <motion.div
@@ -319,10 +416,16 @@ const Dashboard = () => {
         <div className="d-flex justify-content-between align-items-center mb-4">
           <div>
             <h1 className="mb-0 gradient-text">Plan Your Perfect Event</h1>
-            <p className="text-muted">Find and book the best vendors for your special day</p>
+            <p className="text-muted">
+              Find and book the best vendors for your special day
+            </p>
           </div>
           <div className="d-flex gap-2">
-            <Button variant="primary" className="btn-modern" onClick={handleLogout}>
+            <Button
+              variant="primary"
+              className="btn-modern"
+              onClick={handleLogout}
+            >
               <FaSignOutAlt className="me-2" />
               Logout
             </Button>
@@ -336,37 +439,57 @@ const Dashboard = () => {
         </div>
       </motion.div>
 
-      <Tabs activeKey={activeTab} onSelect={setActiveTab} className="mb-4" defaultActiveKey="overview">
-        <Tab eventKey="overview" title={<><FaEye className="me-2" />Overview</>}>
+      <Tabs
+        activeKey={activeTab}
+        onSelect={setActiveTab}
+        className="mb-4"
+        defaultActiveKey="overview"
+      >
+        <Tab
+          eventKey="overview"
+          title={
+            <>
+              <FaEye className="me-2" />
+              Overview
+            </>
+          }
+        >
           <Row className="mb-4">
             <Col md={8}>
               <Card className="card-modern p-3 mb-3">
-                <h4 className="mb-1">Welcome back, {userProfile.name.split(' ')[0]}!</h4>
-                <p className="text-muted mb-3">Here’s a quick summary of your event planning.</p>
+                <h4 className="mb-1">Welcome back, {userProfile.firstName}!</h4>
+                <p className="text-muted mb-3">
+                  Here’s a quick summary of your event planning.
+                </p>
                 <Row>
                   <Col md={4} className="mb-2">
                     <Card className="p-3 h-100">
                       <div className="fw-bold">Active Events</div>
-                      <div className="display-6">{events.filter(e => e.status !== 'Completed').length}</div>
+                      <div className="display-6">{activeEvents.length}</div>
                     </Card>
                   </Col>
                   <Col md={4} className="mb-2">
                     <Card className="p-3 h-100">
-                      <div className="fw-bold">Upcoming Bookings</div>
-                      <div className="display-6">{bookings.filter(b => b.status !== 'Cancelled').length}</div>
+                      <div className="fw-bold">Completed Events</div>
+                      <div className="display-6">{compEvents.length}</div>
                     </Card>
                   </Col>
-                  <Col md={4} className="mb-2">
+                  {/* <Col md={4} className="mb-2">
                     <Card className="p-3 h-100">
                       <div className="fw-bold">Favorites</div>
                       <div className="display-6">{favorites.length}</div>
                     </Card>
-                  </Col>
+                  </Col> */}
                 </Row>
                 <Row className="mt-3">
                   <Col md={12} className="mb-2">
-                    <Button variant="primary" className="w-100 btn-modern" onClick={() => navigate('/event-create')}>
-                      <FaSearch className="me-2" />Search & Book Vendors
+                    <Button
+                      variant="primary"
+                      className="w-100 btn-modern"
+                      onClick={() => navigate("/event-create")}
+                    >
+                      <FaSearch className="me-2" />
+                      Search & Book Vendors
                     </Button>
                   </Col>
                 </Row>
@@ -374,12 +497,22 @@ const Dashboard = () => {
             </Col>
             <Col md={4}>
               <Card className="card-modern p-3 h-100">
-                <h5 className="mb-3"><FaEnvelope className="me-2" />Notifications</h5>
-                {notifications.length === 0 && <div className="text-muted">No new notifications</div>}
-                {notifications.map(n => (
-                  <div key={n.id} className="mb-2 d-flex justify-content-between">
+                <h5 className="mb-3">
+                  <FaEnvelope className="me-2" />
+                  Notifications
+                </h5>
+                {notifications.length === 0 && (
+                  <div className="text-muted">No new notifications</div>
+                )}
+                {notifications.map((n) => (
+                  <div
+                    key={n.id}
+                    className="mb-2 d-flex justify-content-between"
+                  >
                     <span>{n.text}</span>
-                    <Badge bg={n.unread ? 'primary' : 'secondary'}>{n.time}</Badge>
+                    <Badge bg={n.unread ? "primary" : "secondary"}>
+                      {n.time}
+                    </Badge>
                   </div>
                 ))}
               </Card>
@@ -390,26 +523,84 @@ const Dashboard = () => {
             <Col md={12} className="mb-3">
               <Card className="card-modern p-3 h-100">
                 <h5 className="mb-3">📊 Booking Summary</h5>
-                <div className="d-flex justify-content-between mb-2"><span>Total Bookings</span><span className="fw-bold">{bookingSummary.total}</span></div>
-                <div className="d-flex justify-content-between mb-2"><span>Pending</span><Badge bg="warning">{bookingSummary.pending}</Badge></div>
-                <div className="d-flex justify-content-between mb-2"><span>Confirmed</span><Badge bg="success">{bookingSummary.confirmed}</Badge></div>
-                <div className="d-flex justify-content-between"><span>Completed</span><Badge bg="primary">{bookingSummary.completed}</Badge></div>
+                <div className="d-flex justify-content-between mb-2">
+                  <span>Total Bookings</span>
+                  <span className="fw-bold">{totalEvents}</span>
+                </div>
+                <div className="d-flex justify-content-between mb-2">
+                  <span>Pending</span>
+                  <Badge bg="warning">
+                    {
+                      activeEvents.filter(
+                        (e) => e.status === "draft" || e.status === "planning"
+                      ).length
+                    }
+                  </Badge>
+                </div>
+                <div className="d-flex justify-content-between mb-2">
+                  <span>Confirmed</span>
+                  <Badge bg="success">
+                    {
+                      activeEvents.filter((e) => e.status === "confirmed")
+                        .length
+                    }
+                  </Badge>
+                </div>
+                <div className="d-flex justify-content-between">
+                  <span>Completed</span>
+                  <Badge bg="primary">{compEvents.length}</Badge>
+                </div>
               </Card>
             </Col>
           </Row>
         </Tab>
 
-        <Tab eventKey="events" title={<><FaUsers className="me-2" />My Events</>}>
+        <Tab
+          eventKey="events"
+          title={
+            <>
+              <FaUsers className="me-2" />
+              My Events
+            </>
+          }
+        >
           <Row>
-            {events.map(ev => (
-              <Col md={6} key={ev.id} className="mb-3">
+            {eventDetails.map((ev) => (
+              <Col md={6} key={ev.eventId} className="mb-3">
                 <Card className="card-modern p-3 h-100">
                   <div className="d-flex justify-content-between">
                     <div>
-                      <h5 className="mb-1">{ev.name}</h5>
-                      <div className="text-muted"><FaCalendarAlt className="me-1" />{ev.date} • <FaMapMarkerAlt className="me-1" />{ev.location}</div>
+                      <h5 className="mb-1">{ev.title.split("-")[1]}</h5>
+                      <div className="text-muted">
+                        <FaCalendarAlt className="me-1" />
+                        {ev.eventDate} • <FaMapMarkerAlt className="me-1" />
+                        {ev.venueAddress}
+                      </div>
                     </div>
-                    <Badge bg={ev.status === 'Completed' ? 'success' : ev.status.includes('Pending') ? 'warning' : 'info'}>{ev.status}</Badge>
+                    <div className="d-flex align-items-center gap-2">
+                      <Badge
+                        bg={
+                          ev.status === "Completed"
+                            ? "success"
+                            : ev.status.includes("draft")
+                            ? "warning"
+                            : ev.status.includes("planning")
+                            ? "info"
+                            : "primary"
+                        }
+                      >
+                        {ev.status}
+                      </Badge>
+                      <Button
+                        size="sm"
+                        variant="outline-primary"
+                        onClick={() => {
+                          navigate(`/event-details?eventId=${ev.eventId}`);
+                        }}
+                      >
+                        <FaEye />
+                      </Button>
+                    </div>
                   </div>
                 </Card>
               </Col>
@@ -417,7 +608,15 @@ const Dashboard = () => {
           </Row>
         </Tab>
 
-        <Tab eventKey="calendar" title={<><FaCalendarAlt className="me-2" />Calendar</>}>
+        <Tab
+          eventKey="calendar"
+          title={
+            <>
+              <FaCalendarAlt className="me-2" />
+              Calendar
+            </>
+          }
+        >
           <Card className="card-modern p-3">
             <h5 className="mb-3">Completed Events</h5>
             <div className="table-responsive">
@@ -431,50 +630,90 @@ const Dashboard = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {events
-                    .filter(ev => ev.status === 'Completed')
-                    .map(ev => {
-                      const relatedVendors = bookings
-                        .filter(b => b.eventId === ev.id)
-                        .map(b => b.vendorName);
-                      const vendorNames = relatedVendors.length > 0 ? relatedVendors.join(', ') : '—';
-                      return (
-                        <tr key={ev.id}>
-                          <td>{ev.date}</td>
-                          <td>{vendorNames}</td>
-                          <td>{ev.name}</td>
-                          <td><Badge bg="success">Completed</Badge></td>
-                        </tr>
-                      );
-                    })}
+                  {compEvents.map((ev) => {
+                    const relatedVendors = bookings
+                      .filter((b) => b.eventId === ev.id)
+                      .map((b) => b.vendorName);
+                    const vendorNames =
+                      relatedVendors.length > 0
+                        ? relatedVendors.join(", ")
+                        : "—";
+                    return (
+                      <tr key={ev.id}>
+                        <td>{ev.date}</td>
+                        <td>{vendorNames}</td>
+                        <td>{ev.name}</td>
+                        <td>
+                          <Badge bg="success">Completed</Badge>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           </Card>
         </Tab>
 
-        <Tab eventKey="bookings" title={<><FaRupeeSign className="me-2" />Bookings</>}>
+        {/* <Tab
+          eventKey="bookings"
+          title={
+            <>
+              <FaRupeeSign className="me-2" />
+              Bookings
+            </>
+          }
+        >
           <Row>
-            {bookings.map(b => (
+            {bookings.map((b) => (
               <Col md={6} key={b.id} className="mb-3">
                 <Card className="card-modern p-3 h-100">
                   <div className="d-flex justify-content-between mb-2">
                     <div className="fw-semibold">{b.vendorName}</div>
-                    <Badge bg={b.status === 'Confirmed' ? 'success' : b.status === 'Pending' ? 'warning' : 'secondary'}>{b.status}</Badge>
+                    <Badge
+                      bg={
+                        b.status === "Confirmed"
+                          ? "success"
+                          : b.status === "Pending"
+                          ? "warning"
+                          : "secondary"
+                      }
+                    >
+                      {b.status}
+                    </Badge>
                   </div>
-                  <div className="text-muted mb-2">Service: <span className="text-capitalize">{b.service}</span> • Event: {b.eventId} • Date: {b.date}</div>
+                  <div className="text-muted mb-2">
+                    Service:{" "}
+                    <span className="text-capitalize">{b.service}</span> •
+                    Event: {b.eventId} • Date: {b.date}
+                  </div>
                   <div className="mb-3">
-                    <div><strong>Amount:</strong> ₹{b.amount.toLocaleString()}</div>
-                    <div><strong>Paid:</strong> ₹{b.paid.toLocaleString()}</div>
-                    <div><strong>Due:</strong> ₹{(b.amount - b.paid).toLocaleString()}</div>
+                    <div>
+                      <strong>Amount:</strong> ₹{b.amount.toLocaleString()}
+                    </div>
+                    <div>
+                      <strong>Paid:</strong> ₹{b.paid.toLocaleString()}
+                    </div>
+                    <div>
+                      <strong>Due:</strong> ₹
+                      {(b.amount - b.paid).toLocaleString()}
+                    </div>
                   </div>
                   <Row className="g-2">
                     <Col>
-                      <Button variant="outline-secondary" className="w-100" onClick={() => downloadInvoice(b)}>Download Invoice</Button>
+                      <Button
+                        variant="outline-secondary"
+                        className="w-100"
+                        onClick={() => downloadInvoice(b)}
+                      >
+                        Download Invoice
+                      </Button>
                     </Col>
-                    {b.status !== 'Pending' && (
+                    {b.status !== "Pending" && (
                       <Col>
-                        <Button variant="primary" className="w-100">Make Payment</Button>
+                        <Button variant="primary" className="w-100">
+                          Make Payment
+                        </Button>
                       </Col>
                     )}
                   </Row>
@@ -484,32 +723,144 @@ const Dashboard = () => {
           </Row>
           <Card className="card-modern p-3">
             <h5 className="mb-3">Payment History</h5>
-            {payments.length === 0 && <div className="text-muted">No payments yet</div>}
-            {payments.map(p => (
-              <div key={p.id} className="d-flex justify-content-between border-bottom py-2">
-                <span>#{p.id} • Booking {p.bookingId} • {p.method}</span>
-                <span>₹{p.amount.toLocaleString()} • {p.date}</span>
+            {payments.length === 0 && (
+              <div className="text-muted">No payments yet</div>
+            )}
+            {payments.map((p) => (
+              <div
+                key={p.id}
+                className="d-flex justify-content-between border-bottom py-2"
+              >
+                <span>
+                  #{p.id} • Booking {p.bookingId} • {p.method}
+                </span>
+                <span>
+                  ₹{p.amount.toLocaleString()} • {p.date}
+                </span>
               </div>
             ))}
           </Card>
         </Tab>
 
-        <Tab eventKey="favorites" title={<><FaHeart className="me-2" />Favorites</>}>
+        <Tab
+          eventKey="favorites"
+          title={
+            <>
+              <FaHeart className="me-2" />
+              Favorites
+            </>
+          }
+        >
           <Row>
-            {favorites.length === 0 && <div className="text-muted px-3">No favorites yet. Browse vendors and tap the heart to save.</div>}
-            {favorites.map(fid => {
-              const vendor = allVendors.find(v => v.id === fid);
+            {favorites.length === 0 && (
+              <div className="text-muted px-3">
+                No favorites yet. Browse vendors and tap the heart to save.
+              </div>
+            )}
+            {favorites.map((fid) => {
+              const vendor = allVendors.find((v) => v.id === fid);
               return vendor ? (
                 <Col md={4} key={fid} className="mb-4">
-                  <VendorCard vendor={vendor} serviceType={''} />
+                  <VendorCard vendor={vendor} serviceType={""} />
                 </Col>
               ) : null;
             })}
           </Row>
+        </Tab> */}
+
+        <Tab
+          eventKey="profile"
+          title={
+            <>
+              <FaUser className="me-2" />
+              Profile
+            </>
+          }
+        >
+          <Row>
+            <Col lg={8}>
+              <Card className="card-modern border-0 shadow-sm">
+                <Card.Header className="bg-transparent border-0">
+                  <h5 className="mb-0">My Profile</h5>
+                </Card.Header>
+
+                <Card.Body>
+                  <Row>
+                    <Col md={6} className="mb-3">
+                      <strong>First Name:</strong>
+                      <p className="text-muted">{userProfile.firstName}</p>
+                    </Col>
+
+                    <Col md={6} className="mb-3">
+                      <strong>Last Name:</strong>
+                      <p className="text-muted">{userProfile.lastName}</p>
+                    </Col>
+
+                    <Col md={6} className="mb-3">
+                      <strong>Email:</strong>
+                      <p className="text-muted">{userProfile.email}</p>
+                    </Col>
+
+                    <Col md={6} className="mb-3">
+                      <strong>Phone:</strong>
+                      <p className="text-muted">{userProfile.phone || "—"}</p>
+                    </Col>
+
+                    <Col md={6} className="mb-3">
+                      <strong>Verification:</strong>
+                      <p>
+                        {userProfile.verified ? (
+                          <Badge bg="success">
+                            <FaCheckCircle className="me-1" />
+                            Verified
+                          </Badge>
+                        ) : (
+                          <Badge bg="warning">Not Verified</Badge>
+                        )}
+                      </p>
+                    </Col>
+                  </Row>
+                </Card.Body>
+              </Card>
+            </Col>
+
+            {/* SIDE CARD */}
+            <Col lg={4}>
+              <Card className="card-modern border-0 shadow-sm text-center">
+                <Card.Body>
+                  <img
+                    src={userProfile.profileImageUrl || "/default-avatar.png"}
+                    alt="Profile"
+                    className="rounded-circle mb-3"
+                    style={{
+                      width: 120,
+                      height: 120,
+                      objectFit: "cover",
+                    }}
+                  />
+                  <h5>{userProfile.fullName}</h5>
+                  <p className="text-muted">{userProfile.email}</p>
+
+                  <Button
+                    variant="outline-primary"
+                    className="w-100"
+                    onClick={() => {
+                      setProfileForm({
+                        firstName: userProfile.firstName,
+                        lastName: userProfile.lastName,
+                        phone: userProfile.phone || "",
+                        email: userProfile.email,
+                      });
+                      setShowProfileModal(true);
+                    }}
+                  >
+                    Edit Profile
+                  </Button>
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
         </Tab>
-
-        {/* Messages tab removed per requirement */}
-
       </Tabs>
 
       {/* Booking Modal */}
@@ -522,7 +873,12 @@ const Dashboard = () => {
       />
 
       {/* Vendor Details Modal with Reviews */}
-      <Modal show={showVendorModal} onHide={() => setShowVendorModal(false)} size="xl" centered>
+      <Modal
+        show={showVendorModal}
+        onHide={() => setShowVendorModal(false)}
+        size="xl"
+        centered
+      >
         <Modal.Header closeButton>
           <Modal.Title>{selectedVendor?.name} - Reviews & Details</Modal.Title>
         </Modal.Header>
@@ -535,7 +891,11 @@ const Dashboard = () => {
                     src={selectedVendor.image}
                     alt={selectedVendor.name}
                     className="img-fluid rounded"
-                    style={{ width: '100%', height: '250px', objectFit: 'cover' }}
+                    style={{
+                      width: "100%",
+                      height: "250px",
+                      objectFit: "cover",
+                    }}
                   />
                 </Col>
                 <Col md={8}>
@@ -548,11 +908,15 @@ const Dashboard = () => {
                     <div className="d-flex align-items-center mb-2">
                       <FaStar className="text-warning me-1" />
                       <span className="fw-bold">{selectedVendor.rating}</span>
-                      <span className="text-muted ms-1">({selectedVendor.reviews} reviews)</span>
+                      <span className="text-muted ms-1">
+                        ({selectedVendor.reviews} reviews)
+                      </span>
                     </div>
-                    <p className="text-success fw-bold mb-3">{selectedVendor.price}</p>
+                    <p className="text-success fw-bold mb-3">
+                      {selectedVendor.price}
+                    </p>
                   </div>
-                  
+
                   <div className="mb-3">
                     <h6>Contact Information</h6>
                     <p className="mb-1">
@@ -582,23 +946,29 @@ const Dashboard = () => {
                 vendorId={selectedVendor.id}
                 reviews={vendorReviews[selectedVendor.id] || []}
                 onAddReview={(review) => {
-                  setVendorReviews(prev => ({
+                  setVendorReviews((prev) => ({
                     ...prev,
-                    [selectedVendor.id]: [...(prev[selectedVendor.id] || []), review]
+                    [selectedVendor.id]: [
+                      ...(prev[selectedVendor.id] || []),
+                      review,
+                    ],
                   }));
                 }}
                 onUpdateReview={(updatedReview) => {
-                  setVendorReviews(prev => ({
+                  setVendorReviews((prev) => ({
                     ...prev,
-                    [selectedVendor.id]: (prev[selectedVendor.id] || []).map(review =>
-                      review.id === updatedReview.id ? updatedReview : review
-                    )
+                    [selectedVendor.id]: (prev[selectedVendor.id] || []).map(
+                      (review) =>
+                        review.id === updatedReview.id ? updatedReview : review
+                    ),
                   }));
                 }}
                 onDeleteReview={(reviewId) => {
-                  setVendorReviews(prev => ({
+                  setVendorReviews((prev) => ({
                     ...prev,
-                    [selectedVendor.id]: (prev[selectedVendor.id] || []).filter(review => review.id !== reviewId)
+                    [selectedVendor.id]: (prev[selectedVendor.id] || []).filter(
+                      (review) => review.id !== reviewId
+                    ),
                   }));
                 }}
               />
@@ -607,24 +977,135 @@ const Dashboard = () => {
         </Modal.Body>
       </Modal>
 
+      <Modal
+        show={showProfileModal}
+        onHide={() => setShowProfileModal(false)}
+        size="lg"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Edit Profile</Modal.Title>
+        </Modal.Header>
+
+        <Modal.Body>
+          {profileForm && (
+            <Form>
+              <Row>
+                <Col md={6} className="mb-3">
+                  <Form.Group>
+                    <Form.Label>First Name</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={profileForm.firstName}
+                      onChange={(e) =>
+                        setProfileForm({
+                          ...profileForm,
+                          firstName: e.target.value,
+                        })
+                      }
+                    />
+                  </Form.Group>
+                </Col>
+
+                <Col md={6} className="mb-3">
+                  <Form.Group>
+                    <Form.Label>Last Name</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={profileForm.lastName}
+                      onChange={(e) =>
+                        setProfileForm({
+                          ...profileForm,
+                          lastName: e.target.value,
+                        })
+                      }
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+
+              <Row>
+                <Col md={6} className="mb-3">
+                  <Form.Group>
+                    <Form.Label>Email</Form.Label>
+                    <Form.Control
+                      type="email"
+                      value={profileForm.email}
+                      disabled
+                    />
+                  </Form.Group>
+                </Col>
+
+                <Col md={6} className="mb-3">
+                  <Form.Group>
+                    <Form.Label>Phone</Form.Label>
+                    <Form.Control
+                      type="tel"
+                      value={profileForm.phone}
+                      onChange={(e) =>
+                        setProfileForm({
+                          ...profileForm,
+                          phone: e.target.value,
+                        })
+                      }
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+            </Form>
+          )}
+        </Modal.Body>
+
+        <Modal.Footer>
+          <Button
+            variant="outline-secondary"
+            onClick={() => setShowProfileModal(false)}
+          >
+            Cancel
+          </Button>
+
+          <Button
+            variant="primary"
+            onClick={async () => {
+              try {
+                await handleProfileUpdate(profileForm);
+                setShowProfileModal(false);
+                setAlertMessage("Profile updated successfully!");
+                setShowAlert(true);
+                setTimeout(() => setShowAlert(false), 3000);
+              } catch (err) {
+                console.error(err);
+                setAlertMessage("Failed to update profile");
+                setShowAlert(true);
+              }
+            }}
+          >
+            Save Changes
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
       <style jsx>{`
         .gradient-text {
-          background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+          background: linear-gradient(
+            135deg,
+            var(--primary-color),
+            var(--secondary-color)
+          );
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
         }
-        
+
         .service-card {
           transition: all 0.3s ease;
           border: 2px solid;
         }
-        
+
         .service-card:hover {
           transform: translateY(-2px);
           box-shadow: var(--shadow-md);
         }
-        
+
         .service-card.selected {
           transform: translateY(-2px);
           box-shadow: var(--shadow-lg);

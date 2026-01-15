@@ -375,11 +375,12 @@ const VendorDashboard = () => {
 
   const handleLogout = () => {
     sessionStorage.removeItem("vendorId");
+    sessionStorage.removeItem("userId");
     navigate("/auth");
   };
 
-  const totalBookings = confirmedBookings.length;
   const pendingCount = pendingRequests.length;
+  const totalBookings = confirmedBookings.length + pendingCount;
   const confirmedCount = confirmedBookings.filter(
     (b) => b.status === "confirmed"
   ).length;
@@ -726,10 +727,6 @@ const VendorDashboard = () => {
                       <p className="text-muted">{vendorProfile.bname}</p>
                     </Col>
                     <Col md={6} className="mb-3">
-                      <strong>Category:</strong>
-                      <p className="text-muted">{vendorProfile.category}</p>
-                    </Col>
-                    <Col md={6} className="mb-3">
                       <strong>Location:</strong>
                       <p className="text-muted">{vendorProfile.location}</p>
                     </Col>
@@ -800,7 +797,7 @@ const VendorDashboard = () => {
                     className="w-100 btn-modern"
                     onClick={() => {
                       setProfileForm({
-                        name: vendorProfile.name,
+                        name: vendorProfile.bname,
                         category: vendorProfile.category,
                         location: vendorProfile.location,
                         phone: vendorProfile.phone,
@@ -934,21 +931,6 @@ const VendorDashboard = () => {
                     />
                   </Form.Group>
                 </Col>
-                <Col md={6} className="mb-3">
-                  <Form.Group>
-                    <Form.Label>Category</Form.Label>
-                    <Form.Control
-                      type="text"
-                      value={profileForm.category}
-                      onChange={(e) =>
-                        setProfileForm({
-                          ...profileForm,
-                          category: e.target.value,
-                        })
-                      }
-                    />
-                  </Form.Group>
-                </Col>
               </Row>
               <Row>
                 <Col md={6} className="mb-3">
@@ -993,6 +975,7 @@ const VendorDashboard = () => {
                           email: e.target.value,
                         })
                       }
+                      disabled
                     />
                   </Form.Group>
                 </Col>
@@ -1040,16 +1023,6 @@ const VendorDashboard = () => {
                       ...profileForm,
                       description: e.target.value,
                     })
-                  }
-                />
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Label>Services (comma separated)</Form.Label>
-                <Form.Control
-                  type="text"
-                  value={profileForm.services}
-                  onChange={(e) =>
-                    setProfileForm({ ...profileForm, services: e.target.value })
                   }
                 />
               </Form.Group>
