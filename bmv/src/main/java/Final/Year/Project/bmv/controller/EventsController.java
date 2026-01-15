@@ -1,5 +1,7 @@
 package Final.Year.Project.bmv.controller;
 
+import Final.Year.Project.bmv.dto.CompleteEventRequestDto;
+import Final.Year.Project.bmv.dto.EventDto;
 import Final.Year.Project.bmv.dto.VendorServiceDto;
 import Final.Year.Project.bmv.entity.*;
 import Final.Year.Project.bmv.service.*;
@@ -132,6 +134,9 @@ public class EventsController {
         // If accepted, CREATE BOOKING record
         if (vsr.getStatus() == VendorServiceRequest.Status.ACCEPTED) {
             Events event = vsr.getServiceRequest().getEvent();
+            event.setStatus(Events.Status.PLANNING);
+            event.setUpdatedAt(LocalDateTime.now());
+            eventsService.updateEvents(event.getEventId(),event);
             VendorProfile vendor = vsr.getVendor();
             Bookings booking = Bookings.builder()
                     .event(event)
@@ -278,4 +283,84 @@ public class EventsController {
         }
     }
 
+    @GetMapping("/client/{cid}")
+    public ResponseEntity<?> getClientEvents(@PathVariable Long cid){
+        List<Events> el=eventsService.getClientEvents(cid);
+        List<EventDto> evdto = el.stream().map(EventDto::from).toList();
+        return ResponseEntity.ok(evdto);
+    }
+
+    @GetMapping("/next-top-vendors")
+    public ResponseEntity<List<VendorServiceDto>> getNextTopVendorsForService(
+            @RequestParam Long requestId,
+            @RequestParam String city,
+            @RequestParam Integer guestCount
+    ) {
+        ServiceRequest sr = serviceRequestService.getServiceRequestById(requestId);
+
+        Long serviceId = sr.getService().getServiceId();
+
+        List<Long> rejectedVendorIds =
+                vendorServiceRequestService.getRejectedVendorsId(requestId);
+
+        List<VendorService> filtered = vendorServiceService.getAllVendorServices()
+                .stream()
+                .filter(vs ->
+                        vs.getService().getServiceId().equals(serviceId)
+                                && vs.getVendor().getCity().equalsIgnoreCase(city)
+                                && vs.isAvailable()
+                                && (vs.getMinGuests() == null || guestCount >= vs.getMinGuests())
+                                && (vs.getMaxGuests() == null || guestCount <= vs.getMaxGuests())
+                                && !rejectedVendorIds.contains(vs.getVendor().getVendorId())
+                )
+                .sorted((a, b) ->
+                        b.getVendor().getRating().compareTo(a.getVendor().getRating()))
+                .limit(5)
+                .toList();
+
+        List<VendorServiceDto> dtos = filtered.stream()
+                .map(VendorServiceDto::from)
+                .toList();
+
+        return ResponseEntity.ok(dtos);
+    }
+
+    @GetMapping("/eventDetailsResp/{eid}")
+    public ResponseEntity<?> getDetailedResponse(@PathVariable Long eid){
+        return ResponseEntity.ok(eventsService.getEventDetails(eid));
+    }
+
+    @PostMapping("/create-fresh-request")
+    public ResponseEntity<?> createFreshRequest(@RequestBody Map<String,String> payload) {
+        Events event = eventsService.getEventsById(Long.parseLong(payload.get("eventId")));
+        VendorProfile vendor = vendorProfileService.getVendorProfileById(Long.parseLong(payload.get("vendorId")));
+
+        ServiceRequest sr = serviceRequestService.getServiceRequestById(Long.parseLong(payload.get("requestId")));
+
+        VendorServiceRequest vsr = VendorServiceRequest.builder()
+                .serviceRequest(sr)
+                .vendor(vendor)
+                .proposedAmount(sr.getBudgetMax())
+                .message("Service request for " + sr.getService().getName())
+                .status(VendorServiceRequest.Status.PENDING)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+        vendorServiceRequestService.createVendorServiceRequest(vsr);
+
+        return ResponseEntity.ok("New Service Request Created");
+    }
+
+    @PostMapping("/complete/{eventId}")
+    public ResponseEntity<?> completeEvent(
+            @PathVariable Long eventId,
+            @RequestBody CompleteEventRequestDto dto
+            ) {
+        System.out.println("call recieved at complete");
+        dto.setEventId(eventId);
+        Users user = usersService.getUserById(dto.getUserId());
+        eventsService.completeEvent(dto, user);
+        return ResponseEntity.ok("Event completed successfully");
+    }
 }
+

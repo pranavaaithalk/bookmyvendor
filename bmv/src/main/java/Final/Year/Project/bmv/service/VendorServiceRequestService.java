@@ -82,4 +82,8 @@ public class VendorServiceRequestService {
         }
         return false;
     }
+
+    public List<Long> getRejectedVendorsId(Long rid){
+        return vendorServiceRequestRepository.findRejectedVendorIds(rid);
+    }
 }

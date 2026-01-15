@@ -1,5 +1,6 @@
 package Final.Year.Project.bmv.controller;
 
+import Final.Year.Project.bmv.dto.UserDto;
 import Final.Year.Project.bmv.entity.Users;
 import Final.Year.Project.bmv.entity.VendorProfile;
 import Final.Year.Project.bmv.service.UsersService;
@@ -77,8 +78,10 @@ public class UsersController {
     }
 
     @GetMapping("/{userId}")
-    public ResponseEntity<Users> getUserById(@PathVariable Long userId) {
-        return ResponseEntity.ok(usersService.getUserById(userId));
+    public ResponseEntity<UserDto> getUserById(@PathVariable Long userId) {
+        Users au = usersService.getUserById(userId);
+        UserDto us = UserDto.from(au);
+        return ResponseEntity.ok(us);
     }
 
     @DeleteMapping("/{userId}")

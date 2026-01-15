@@ -31,7 +31,6 @@ public class ReviewsService {
         existing.setBooking(reviewDetails.getBooking());
         existing.setClient(reviewDetails.getClient());
         existing.setVendor(reviewDetails.getVendor());
-        existing.setVendorService(reviewDetails.getVendorService());
         existing.setRating(reviewDetails.getRating());
         existing.setTitle(reviewDetails.getTitle());
         existing.setComment(reviewDetails.getComment());

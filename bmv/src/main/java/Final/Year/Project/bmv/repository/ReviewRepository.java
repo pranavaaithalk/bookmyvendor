@@ -6,5 +6,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface ReviewRepository extends JpaRepository<Reviews, Long> {
+    boolean existsByBooking_VendorServiceRequest_VendorRequestId(Long vendorServiceRequestId);
+
 }
 

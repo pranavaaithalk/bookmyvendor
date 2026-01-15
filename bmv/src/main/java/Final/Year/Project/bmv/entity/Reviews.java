@@ -28,10 +28,6 @@ public class Reviews {
     @JoinColumn(name = "vendor_id", nullable = false)
     private Users vendor;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "vendor_service_id", nullable = false)
-    private VendorService vendorService;
-
     @Column(nullable = false)
     private Integer rating;
 
