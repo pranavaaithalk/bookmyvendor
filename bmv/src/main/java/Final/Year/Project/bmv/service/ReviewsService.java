@@ -42,4 +42,8 @@ public class ReviewsService {
     public void deleteReview(Long id) {
         reviewsRepository.deleteById(id);
     }
+
+    public List<Reviews> getReviewsByVendor(Long vid){
+        return reviewsRepository.findByVendor_UserId(vid);
+    }
 }

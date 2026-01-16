@@ -356,7 +356,6 @@ public class EventsController {
             @PathVariable Long eventId,
             @RequestBody CompleteEventRequestDto dto
             ) {
-        System.out.println("call recieved at complete");
         dto.setEventId(eventId);
         Users user = usersService.getUserById(dto.getUserId());
         eventsService.completeEvent(dto, user);

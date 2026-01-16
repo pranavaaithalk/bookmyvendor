@@ -1,5 +1,6 @@
 package Final.Year.Project.bmv.controller;
 
+import Final.Year.Project.bmv.dto.ReviewOutputDto;
 import Final.Year.Project.bmv.dto.VendorProfileDto;
 import Final.Year.Project.bmv.entity.*;
 import Final.Year.Project.bmv.service.*;
@@ -30,10 +31,12 @@ public class VendorController {
     private UsersService usersService;
 
     @Autowired
-    ServicesService servicesService;
+    private ServicesService servicesService;
 
     @Autowired
-    VendorServiceService vendorServiceService;
+    private VendorServiceService vendorServiceService;
+    @Autowired
+    private ReviewsService reviewsService;
 
     // 1. Get list of new service requests for vendor
     @GetMapping("/requests/new")
@@ -205,5 +208,12 @@ public class VendorController {
     public ResponseEntity<Void> deleteVendorProfile(@PathVariable Long vendorId) {
         vendorProfileService.deleteVendorProfile(vendorId);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/reviews/{vuid}")
+    public ResponseEntity<?> getVendorReviews(@PathVariable Long vuid){
+        List<Reviews> rl=reviewsService.getReviewsByVendor(vuid);
+        List<ReviewOutputDto> out=rl.stream().map(ReviewOutputDto::from).toList();
+        return ResponseEntity.ok(out);
     }
 }
