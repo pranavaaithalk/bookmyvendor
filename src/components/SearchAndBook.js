@@ -79,10 +79,14 @@ const eventServiceMap = {
 const SearchAndBook = () => {
   // form state
   const [eventType, setEventType] = useState({});
-  const [location, setLocation] = useState("Mangalore");
-  const [date, setDate] = useState("2025-08-02");
-  const [totalBudget, setTotalBudget] = useState("550000");
-  const [guestCount, setGuestCount] = useState("150");
+  const [states, setStates] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [selectedState, setSelectedState] = useState("");
+  const [selectedCity, setSelectedCity] = useState("");
+  const [location, setLocation] = useState("");
+  const [date, setDate] = useState("");
+  const [totalBudget, setTotalBudget] = useState("0");
+  const [guestCount, setGuestCount] = useState("");
 
   // fetched lists
   const [services, setServices] = useState([]); // will hold array of Services objects from backend
@@ -153,7 +157,53 @@ const SearchAndBook = () => {
         console.error("Failed to load services/event types", err);
       }
     })();
+
+    const fetchStates = async () => {
+      try {
+        const res = await fetch(
+          "https://countriesnow.space/api/v0.1/countries/states",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ country: "India" }),
+          }
+        );
+        const data = await res.json();
+        setStates(data.data.states.map((s) => s.name));
+      } catch (err) {
+        console.error("Failed to fetch states", err);
+      }
+    };
+
+    fetchStates();
   }, []);
+
+  const fetchCities = async (state) => {
+    try {
+      const res = await fetch(
+        "https://countriesnow.space/api/v0.1/countries/state/cities",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            country: "India",
+            state,
+          }),
+        }
+      );
+      const data = await res.json();
+      setCities(data.data);
+    } catch (err) {
+      console.error("Failed to fetch cities", err);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedCity && selectedState) {
+      setLocation(`${selectedCity}, ${selectedState}, India`);
+    }
+  }, [selectedCity, selectedState]);
+
 
   // map available services by event type — using services state (not the fetch function)
   const availableServices = services.filter((s) => {
@@ -220,7 +270,7 @@ const SearchAndBook = () => {
       if (recommendedByService[id]) return recommendedByService[id];
       const params = {
         serviceId: String(id),
-        city: location,
+        city: location.split(",")[0] || "",
         eventDate: date,
         guestCount: String(guestCount),
       };
@@ -289,27 +339,45 @@ const SearchAndBook = () => {
           <Card.Body className="d-flex flex-column">
             <Card.Title className="d-flex justify-content-between align-items-start">
               <span>{vendor.vendorName}</span>
-              <Button
-                variant={
-                  isSelectedForThisService ? "success" : "outline-primary"
-                }
-                size="sm"
-                onClick={() => selectVendorForService(serviceId, vendor)}
-              >
-                {isSelectedForThisService ? (
+              {isSelectedForThisService ? (
+                <Button
+                  variant={
+                    isSelectedForThisService ? "success" : "outline-primary"
+                  }
+                  size="sm"
+                  onClick={() => selectVendorForService(serviceId, vendor)}
+                >
                   <>
                     <FaCheckCircle className="me-1" /> Selected
                   </>
-                ) : (
-                  "Select Vendor"
-                )}
-              </Button>
+                </Button>
+              ) : null}
             </Card.Title>
-
-            <small className="text-muted d-flex align-items-center">
+            <div className="align-items-center d-flex flex-column">
+              <a
+                href={vendor.businessLogoUrl || null}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <img
+                  src={vendor.businessLogoUrl || "/default-avatar.png"}
+                  alt="Profile"
+                  className="rounded-rectangle mb-3"
+                  style={{
+                    width: 300,
+                    height: 150,
+                    borderRadius: "8px",
+                    objectFit: "cover",
+                    marginTop: 10,
+                  }}
+                />
+              </a>
+              <small>Press on image to view</small>
+            </div>
+            <small className="text-muted fw-bold d-flex align-items-center">
               <FaStar className="me-1" /> {vendor.vendorRating}
             </small>
-            <small className="text-muted d-flex align-items-center">
+            <small className="text-muted fw-bold d-flex align-items-center">
               <FaMapMarkerAlt className="me-1" /> {vendor.vendorCity}
             </small>
 
@@ -433,13 +501,53 @@ const SearchAndBook = () => {
                 <Form.Label className="fw-semibold">
                   <FaMapMarkerAlt className="me-2 text-danger" /> Location
                 </Form.Label>
-                <Form.Control
-                  type="text"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  className="form-control-modern"
-                  placeholder="Enter event location"
-                />
+
+                {location === "" && selectedState === "" && (
+                  <Form.Select
+                    className="mb-2"
+                    value={selectedState}
+                    onChange={(e) => {
+                      const state = e.target.value;
+                      setSelectedState(state);
+                      setSelectedCity("");
+                      setCities([]);
+                      fetchCities(state);
+                    }}
+                  >
+                    <option value="">Select State</option>
+                    {states.map((state) => (
+                      <option key={state} value={state}>
+                        {state}
+                      </option>
+                    ))}
+                  </Form.Select>
+                )}
+
+                {location === "" && selectedState !== "" && (
+                  <Form.Select
+                    className="mb-2"
+                    value={selectedCity}
+                    onChange={(e) => setSelectedCity(e.target.value)}
+                    disabled={!selectedState}
+                  >
+                    <option value="">Select City</option>
+                    {cities.map((city) => (
+                      <option key={city} value={city}>
+                        {city}
+                      </option>
+                    ))}
+                  </Form.Select>
+                )}
+
+                {location !== "" && (
+                  <Form.Control
+                    type="text"
+                    value={location}
+                    readOnly
+                    className="form-control-modern"
+                    placeholder="City, State, India"
+                  />
+                )}
               </Form.Group>
             </Col>
           </Row>

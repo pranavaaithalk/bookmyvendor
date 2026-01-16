@@ -128,3 +128,8 @@ export const submitReviews = async (eventId,payload) => {
   );
   return resp;
 };
+
+export const getVendorReviews = async (vendorId) => {
+  const resp = await axios.get(`${BASE_URL}/vendors/reviews/${vendorId}`);
+  return resp;
+};

@@ -41,6 +41,11 @@ const VendorOnboarding = () => {
   const [services, setServices] = useState([]);
   const [servicesLoading, setServicesLoading] = useState(true);
   const [servicesError, setServicesError] = useState(null);
+  const [states, setStates] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [selectedState, setSelectedState] = useState("");
+  const [selectedCity, setSelectedCity] = useState("");
+  const [location, setLocation] = useState("");
 
   useEffect(() => {
     let mounted = true;
@@ -58,10 +63,55 @@ const VendorOnboarding = () => {
         setServicesError("Failed to load service types");
         setServicesLoading(false);
       });
+      const fetchStates = async () => {
+        try {
+          const res = await fetch(
+            "https://countriesnow.space/api/v0.1/countries/states",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ country: "India" }),
+            }
+          );
+          const data = await res.json();
+          setStates(data.data.states.map((s) => s.name));
+        } catch (err) {
+          console.error("Failed to fetch states", err);
+        }
+      };
+  
+      fetchStates();
     return () => {
       mounted = false;
     };
+
   }, []);
+
+  const fetchCities = async (state) => {
+    try {
+      const res = await fetch(
+        "https://countriesnow.space/api/v0.1/countries/state/cities",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            country: "India",
+            state,
+          }),
+        }
+      );
+      const data = await res.json();
+      setCities(data.data);
+    } catch (err) {
+      console.error("Failed to fetch cities", err);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedCity && selectedState) {
+      setLocation(`${selectedCity}, ${selectedState}, India`);
+    }
+  }, [selectedCity, selectedState]);
 
   const userIdFromStorage = () => {
     const id = sessionStorage.getItem("userId");
@@ -72,7 +122,6 @@ const VendorOnboarding = () => {
     if (
       !form.businessName ||
       !form.businessAddress ||
-      !form.city ||
       !form.state ||
       !form.pincode
     ) {
@@ -116,9 +165,9 @@ const VendorOnboarding = () => {
       businessName: form.businessName,
       businessDescription: form.businessDescription || "",
       businessAddress: form.businessAddress,
-      city: form.city,
-      state: form.state,
-      country: form.country || "India",
+      city: selectedCity,
+      state: selectedState,
+      country: "India",
       pincode: form.pincode,
       businessPhone: form.businessPhone || "",
       businessEmail: form.businessEmail || "",
@@ -278,29 +327,40 @@ const VendorOnboarding = () => {
                     <Row>
                       <Col md={6} className="mb-3 mb-md-0">
                         <Form.Label>City</Form.Label>
-                        <Form.Control
-                          type="text"
-                          placeholder="City"
-                          value={form.city}
-                          onChange={(e) =>
-                            setForm({ ...form, city: e.target.value })
-                          }
-                          style={{ borderRadius: "10px" }}
-                          required
-                        />
+                        <Form.Select
+                          className="mb-2"
+                          value={selectedState}
+                          onChange={(e) => {
+                            const state = e.target.value;
+                            setSelectedState(state);
+                            setSelectedCity("");
+                            setCities([]);
+                            fetchCities(state);
+                          }}
+                        >
+                          <option value="">Select State</option>
+                          {states.map((state) => (
+                            <option key={state} value={state}>
+                              {state}
+                            </option>
+                          ))}
+                        </Form.Select>
                       </Col>
                       <Col md={6}>
                         <Form.Label>State</Form.Label>
-                        <Form.Control
-                          type="text"
-                          placeholder="State"
-                          value={form.state}
-                          onChange={(e) =>
-                            setForm({ ...form, state: e.target.value })
-                          }
-                          style={{ borderRadius: "10px" }}
-                          required
-                        />
+                        <Form.Select
+                          className="mb-2"
+                          value={selectedCity}
+                          onChange={(e) => setSelectedCity(e.target.value)}
+                          disabled={!selectedState}
+                        >
+                          <option value="">Select City</option>
+                          {cities.map((city) => (
+                            <option key={city} value={city}>
+                              {city}
+                            </option>
+                          ))}
+                        </Form.Select>
                       </Col>
                     </Row>
                   </Form.Group>
@@ -338,10 +398,10 @@ const VendorOnboarding = () => {
                   </Form.Group>
 
                   <Form.Group className="mb-3">
-                    <Form.Label>Business Email</Form.Label>
+                    <Form.Label>Business Email (optional)</Form.Label>
                     <Form.Control
                       type="email"
-                      placeholder="contact@yourbusiness.com (optional)"
+                      placeholder="contact@yourbusiness.com"
                       value={form.businessEmail}
                       onChange={(e) =>
                         setForm({ ...form, businessEmail: e.target.value })
@@ -365,7 +425,9 @@ const VendorOnboarding = () => {
                   </Form.Group>
 
                   <Form.Group className="mb-3">
-                    <Form.Label>Business Logo URL (optional)</Form.Label>
+                    <Form.Label>
+                      Business Logo URL (optional, can be updated later)
+                    </Form.Label>
                     <Form.Control
                       type="text"
                       placeholder="https://example.com/logo.jpg"
@@ -378,11 +440,13 @@ const VendorOnboarding = () => {
                   </Form.Group>
 
                   <Form.Group className="mb-3">
-                    <Form.Label>Additional Details</Form.Label>
+                    <Form.Label>
+                      Small Description about your Business
+                    </Form.Label>
                     <Form.Control
                       as="textarea"
                       rows={3}
-                      placeholder="Anything else you'd like us to know"
+                      placeholder="Anything else that would help you reach your customers..."
                       value={form.extra}
                       onChange={(e) =>
                         setForm({ ...form, extra: e.target.value })

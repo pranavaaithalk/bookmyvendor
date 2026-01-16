@@ -38,6 +38,7 @@ import {
   getClientProfile,
   updateClientProfile,
 } from "../services/api";
+import ProfileImageUpload from "../services/ImageUpload";
 
 // const servicesList = [
 //   { name: "Catering", key: "catering", icon: "🍽️", color: "#f59e0b" },
@@ -112,6 +113,7 @@ const Dashboard = () => {
   const [totalEvents, setTotalEvents] = useState(0);
   const [activeEvents, setActiveEvents] = useState([]);
   const [compEvents, setCompEvents] = useState([]);
+  const [showImageUploader, setShowImageUploader] = useState(false);
 
 
   const handleLogout = () => {
@@ -126,6 +128,7 @@ const Dashboard = () => {
       firstName: form.firstName,
       lastName: form.lastName,
       phone: form.phone,
+      profileImageUrl: form.profileImageUrl,
     };
     try{
     const res = await updateClientProfile(userId, payload);
@@ -1051,7 +1054,36 @@ const Dashboard = () => {
                   </Form.Group>
                 </Col>
               </Row>
+              <Form.Group className="mb-3">
+                <Button
+                  variant="outline-secondary"
+                  onClick={() => setShowImageUploader(true)}
+                >
+                  Update Business Image
+                </Button>
+              </Form.Group>
             </Form>
+          )}
+          {showImageUploader && (
+            <div className="mt-3 text-center">
+              <ProfileImageUpload
+                userId={"user " + sessionStorage.getItem("userId")}
+                onUploadSuccess={(imageUrl) => {
+                  setProfileForm((prev) => ({
+                    ...prev,
+                    profileImageUrl: imageUrl,
+                  }));
+
+                  setUserProfile((prev) => ({
+                    ...prev,
+                    profileImageUrl: imageUrl,
+                  }));
+
+                  setShowImageUploader(false);
+                }}
+                type="client"
+              />
+            </div>
           )}
         </Modal.Body>
 

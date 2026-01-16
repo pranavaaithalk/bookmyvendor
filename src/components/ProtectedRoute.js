@@ -10,9 +10,12 @@ const ProtectedRoute = ({ children, userType }) => {
       isAuthenticated = true;
     }
   } else if (userType === 'vendor') {
+    const userId = sessionStorage.getItem("userId");
     const vendorId = sessionStorage.getItem('vendorId');
     if (vendorId) {
       isAuthenticated = true;
+    }else if (vendorId===-1 && userId) {
+      return <Navigate to={"/vendor-onboarding"} replace />;
     }
   }
   

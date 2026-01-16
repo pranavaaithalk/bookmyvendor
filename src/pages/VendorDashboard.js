@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, use } from "react";
 import {
   Container,
   Row,
@@ -41,9 +41,11 @@ import {
   updateVendorProfile,
   getVendorBookings,
   getVendorServiceRequests,
-  respondToServiceRequest
+  respondToServiceRequest,
+  getVendorReviews,
 } from "../services/api"; // <-- make sure this path matches your project
 import { useNavigate } from "react-router-dom";
+import ProfileImageUpload from "../services/ImageUpload";
 
 const VendorDashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
@@ -71,7 +73,8 @@ const VendorDashboard = () => {
     description: "",
     services: [],
     priceRange: "",
-    totalRevenue:0,
+    totalRevenue: 0,
+    businessLogoUrl: "",
   });
   const [profileForm, setProfileForm] = useState(null);
   const [pendingRequests, setPendingRequests] = useState([]);
@@ -79,6 +82,11 @@ const VendorDashboard = () => {
   const [loadingRequests, setLoadingRequests] = useState(true);
 
   const [loadingBookings, setLoadingBookings] = useState(true);
+  const [showReviewsModal, setShowReviewsModal] = useState(false);
+  const [reviews, setReviews] = useState([]);
+  const [showImageUploader, setShowImageUploader] = useState(false);
+
+
 
   // analytics + bookings remain static demo data (you can fetch them later)
   const analytics = {
@@ -113,6 +121,7 @@ const VendorDashboard = () => {
       const years = parseInt(form.experience);
       if (!isNaN(years)) payload.yearsOfExperience = years;
     }
+    if(form.businessLogoUrl) payload.businessLogoUrl = form.businessLogoUrl;
 
     return payload;
   };
@@ -233,6 +242,7 @@ const VendorDashboard = () => {
           services,
           priceRange,
           totalRevenue,
+          businessLogoUrl: dto.businessLogoUrl || "",
         };
 
         setVendorProfile(mapped);
@@ -448,7 +458,11 @@ const VendorDashboard = () => {
             </p>
           </div>
           <div className="d-flex gap-2">
-            <Button variant="primary" className="btn-modern" onClick={handleLogout}>
+            <Button
+              variant="primary"
+              className="btn-modern"
+              onClick={handleLogout}
+            >
               <FaSignOutAlt className="me-2" />
               Logout
             </Button>
@@ -517,9 +531,7 @@ const VendorDashboard = () => {
                     <ProgressBar
                       variant="danger"
                       now={
-                        totalBookings
-                          ? (pendingCount / totalBookings) * 100
-                          : 0
+                        totalBookings ? (pendingCount / totalBookings) * 100 : 0
                       }
                       className="mb-3"
                     />
@@ -568,21 +580,29 @@ const VendorDashboard = () => {
                 </Card.Header>
                 <Card.Body>
                   <div className="d-grid gap-2">
-                    <Button variant="primary" className="btn-modern">
-                      <FaPlus className="me-2" />
-                      Add New Service
-                    </Button>
-                    <Button variant="outline-primary" className="btn-modern">
-                      <FaCalendarAlt className="me-2" />
-                      Update Availability
-                    </Button>
-                    <Button variant="outline-success" className="btn-modern">
+                    <Button
+                      variant="outline-warning"
+                      onClick={async () => {
+                        try {
+                          const userId = sessionStorage.getItem("userId");
+                          const res = await getVendorReviews(userId); // backend API
+                          setReviews(res.data);
+                          setShowReviewsModal(true);
+                        } catch (err) {
+                          console.error("Failed to load reviews", err);
+                        }
+                      }}
+                    >
                       <FaStar className="me-2" />
                       View Reviews
                     </Button>
-                    <Button variant="outline-info" className="btn-modern">
-                      <FaUsers className="me-2" />
-                      Client Messages
+                    <Button
+                      variant="primary"
+                      className="btn-modern"
+                      onClick={handleLogout}
+                    >
+                      <FaSignOutAlt className="me-2" />
+                      Logout
                     </Button>
                   </div>
                 </Card.Body>
@@ -763,10 +783,24 @@ const VendorDashboard = () => {
 
             <Col lg={4}>
               <Card className="card-modern border-0 shadow-sm">
-                <Card.Header className="bg-transparent border-0">
-                  <h5 className="mb-0">Performance</h5>
-                </Card.Header>
                 <Card.Body>
+                  <div className="align-items-center d-flex flex-column">
+                    <img
+                      src={
+                        vendorProfile.businessLogoUrl || "/default-avatar.png"
+                      }
+                      alt="Profile"
+                      className="rounded-circle mb-3"
+                      style={{
+                        width: 120,
+                        height: 120,
+                        objectFit: "cover",
+                      }}
+                    />
+                    <h5 className="fw-bold text-info">
+                      {vendorProfile.bname}
+                    </h5>
+                  </div>
                   <div className="text-center mb-3">
                     <h2 className="display-4 fw-bold text-warning">
                       {vendorProfile.rating}
@@ -1026,7 +1060,36 @@ const VendorDashboard = () => {
                   }
                 />
               </Form.Group>
+              <Form.Group className="mb-3">
+                <Button
+                  variant="outline-secondary"
+                  onClick={() => setShowImageUploader(true)}
+                >
+                  Update Business Image
+                </Button>
+              </Form.Group>
             </Form>
+          )}
+          {showImageUploader && (
+            <div className="mt-3 text-center">
+              <ProfileImageUpload
+                userId={"vendor "+sessionStorage.getItem("vendorId")}
+                onUploadSuccess={(imageUrl) => {
+                  setProfileForm((prev) => ({
+                    ...prev,
+                    businessLogoUrl: imageUrl,
+                  }));
+
+                  setVendorProfile((prev) => ({
+                    ...prev,
+                    businessLogoUrl: imageUrl,
+                  }));
+
+                  setShowImageUploader(false);
+                }}
+                type="vendor"
+              />
+            </div>
           )}
         </Modal.Body>
         <Modal.Footer>
@@ -1058,6 +1121,47 @@ const VendorDashboard = () => {
             Save Changes
           </Button>
         </Modal.Footer>
+      </Modal>
+
+      <Modal
+        show={showReviewsModal}
+        onHide={() => setShowReviewsModal(false)}
+        size="lg"
+        centered
+        scrollable
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>⭐ Customer Reviews</Modal.Title>
+        </Modal.Header>
+
+        <Modal.Body style={{ maxHeight: "70vh", overflowY: "auto" }}>
+          {reviews.length === 0 && (
+            <div className="text-muted text-center py-4">No reviews yet.</div>
+          )}
+
+          {reviews.map((review) => (
+            <Card key={review.reviewId} className="mb-3 shadow-sm">
+              <Card.Body>
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <strong>{review.client || "Client"}</strong>
+                  <Badge bg="warning" className="d-flex align-items-center">
+                    <FaStar className="me-1" />
+                    {review.rating} / 5
+                  </Badge>
+                </div>
+
+                <p className="mb-2">
+                  {review.comment || "No comment provided."}
+                </p>
+
+                <div className="text-muted small d-flex justify-content-between">
+                  <span>{review.event}</span>
+                  <span>{new Date(review.createdAt).toLocaleDateString()}</span>
+                </div>
+              </Card.Body>
+            </Card>
+          ))}
+        </Modal.Body>
       </Modal>
 
       <style jsx>{`

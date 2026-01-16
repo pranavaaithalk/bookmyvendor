@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Container, Row, Col, Card, Form, Button, Tab, Tabs } from 'react-bootstrap';
+import { Container, Row, Col, Card, Form, Button, Tab, Tabs, Alert } from 'react-bootstrap';
 import { motion } from 'framer-motion';
 import { FaUser, FaStore, FaEnvelope, FaLock, FaPhone, FaBuilding } from 'react-icons/fa';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -9,6 +9,7 @@ const Auth = () => {
   const [activeTab, setActiveTab] = useState('login');
   const [_userType, set_userType] = useState('client');
   const [searchParams] = useSearchParams();
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
   
   // Get user type from URL params if redirected from header buttons
@@ -53,6 +54,9 @@ const Auth = () => {
       }
     }catch(error){
       console.log(error);
+      if(error.response && error.response.status === 401){
+        setError('Invalid email or password. Please try again.');
+      }
     }
   };
 
@@ -103,12 +107,14 @@ const Auth = () => {
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      paddingTop: '100px',
-      paddingBottom: '50px'
-    }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+        paddingTop: "100px",
+        paddingBottom: "50px",
+      }}
+    >
       <Container>
         <motion.div
           initial="hidden"
@@ -117,14 +123,19 @@ const Auth = () => {
         >
           <Row className="justify-content-center">
             <Col md={8} lg={6}>
-              <Card className="shadow-lg border-0" style={{ borderRadius: '20px' }}>
+              <Card
+                className="shadow-lg border-0"
+                style={{ borderRadius: "20px" }}
+              >
                 <Card.Body className="p-5">
                   <div className="text-center mb-4">
                     <h2 className="fw-bold text-primary mb-2">
                       Welcome to BookMyVendor
                     </h2>
                     <p className="text-muted">
-                      {_userType === 'client' ? 'Find and book amazing vendors' : 'Grow your business with us'}
+                      {_userType === "client"
+                        ? "Find and book amazing vendors"
+                        : "Grow your business with us"}
                     </p>
                   </div>
 
@@ -132,19 +143,23 @@ const Auth = () => {
                   <div className="mb-4">
                     <div className="d-flex justify-content-center gap-3">
                       <Button
-                        variant={_userType === 'client' ? 'primary' : 'outline-primary'}
-                        onClick={() => set_userType('client')}
+                        variant={
+                          _userType === "client" ? "primary" : "outline-primary"
+                        }
+                        onClick={() => set_userType("client")}
                         className="d-flex align-items-center gap-2 px-4"
-                        style={{ borderRadius: '25px' }}
+                        style={{ borderRadius: "25px" }}
                       >
                         <FaUser />
                         I'm a Client
                       </Button>
                       <Button
-                        variant={_userType === 'vendor' ? 'primary' : 'outline-primary'}
-                        onClick={() => set_userType('vendor')}
+                        variant={
+                          _userType === "vendor" ? "primary" : "outline-primary"
+                        }
+                        onClick={() => set_userType("vendor")}
                         className="d-flex align-items-center gap-2 px-4"
-                        style={{ borderRadius: '25px' }}
+                        style={{ borderRadius: "25px" }}
                       >
                         <FaStore />
                         I'm a Vendor
@@ -160,24 +175,41 @@ const Auth = () => {
                   >
                     <Tab eventKey="login" title="Login">
                       <Form onSubmit={handleLogin}>
+                        {error && (
+                          <Alert
+                            variant="danger"
+                            onClose={() => setError(null)}
+                            dismissible
+                          >
+                            {error}
+                          </Alert>
+                        )}
                         <Form.Group className="mb-3">
                           <Form.Label>Email Address</Form.Label>
                           <div className="position-relative">
-                            <FaEnvelope 
-                              className="position-absolute" 
-                              style={{ 
-                                left: '15px', 
-                                top: '50%', 
-                                transform: 'translateY(-50%)',
-                                color: '#6c757d'
-                              }} 
+                            <FaEnvelope
+                              className="position-absolute"
+                              style={{
+                                left: "15px",
+                                top: "50%",
+                                transform: "translateY(-50%)",
+                                color: "#6c757d",
+                              }}
                             />
                             <Form.Control
                               type="email"
                               placeholder="Enter your email"
                               value={loginData.email}
-                              onChange={(e) => setLoginData({...loginData, email: e.target.value})}
-                              style={{ paddingLeft: '45px', borderRadius: '10px' }}
+                              onChange={(e) =>
+                                setLoginData({
+                                  ...loginData,
+                                  email: e.target.value,
+                                })
+                              }
+                              style={{
+                                paddingLeft: "45px",
+                                borderRadius: "10px",
+                              }}
                               required
                             />
                           </div>
@@ -186,35 +218,46 @@ const Auth = () => {
                         <Form.Group className="mb-4">
                           <Form.Label>Password</Form.Label>
                           <div className="position-relative">
-                            <FaLock 
-                              className="position-absolute" 
-                              style={{ 
-                                left: '15px', 
-                                top: '50%', 
-                                transform: 'translateY(-50%)',
-                                color: '#6c757d'
-                              }} 
+                            <FaLock
+                              className="position-absolute"
+                              style={{
+                                left: "15px",
+                                top: "50%",
+                                transform: "translateY(-50%)",
+                                color: "#6c757d",
+                              }}
                             />
                             <Form.Control
                               type="password"
                               placeholder="Enter your password"
                               value={loginData.passwordHash}
-                              onChange={(e) => setLoginData({...loginData, passwordHash: e.target.value})}
-                              style={{ paddingLeft: '45px', borderRadius: '10px' }}
+                              onChange={(e) =>
+                                setLoginData({
+                                  ...loginData,
+                                  passwordHash: e.target.value,
+                                })
+                              }
+                              style={{
+                                paddingLeft: "45px",
+                                borderRadius: "10px",
+                              }}
                               required
                             />
                           </div>
                         </Form.Group>
-                        <Button onClick={handlePass} className="w-100 mb-3">Fill</Button>
+                        <Button onClick={handlePass} className="w-100 mb-3">
+                          Fill
+                        </Button>
 
                         <Button
                           type="submit"
                           variant="primary"
                           size="lg"
                           className="w-100 mb-3"
-                          style={{ borderRadius: '10px' }}
+                          style={{ borderRadius: "10px" }}
                         >
-                          Login as {_userType === 'client' ? 'Client' : 'Vendor'}
+                          Login as{" "}
+                          {_userType === "client" ? "Client" : "Vendor"}
                         </Button>
                       </Form>
                     </Tab>
@@ -224,45 +267,77 @@ const Auth = () => {
                         <Form.Group className="mb-3">
                           <Row>
                             <Col md={6} className="mb-3 mb-md-0">
-                              <Form.Label>{_userType === 'vendor' ? 'FirstName' : 'First Name'}</Form.Label>
+                              <Form.Label>
+                                {_userType === "vendor"
+                                  ? "FirstName"
+                                  : "First Name"}
+                              </Form.Label>
                               <div className="position-relative">
                                 <FaUser
                                   className="position-absolute"
                                   style={{
-                                    left: '15px',
-                                    top: '50%',
-                                    transform: 'translateY(-50%)',
-                                    color: '#6c757d'
+                                    left: "15px",
+                                    top: "50%",
+                                    transform: "translateY(-50%)",
+                                    color: "#6c757d",
                                   }}
                                 />
                                 <Form.Control
                                   type="text"
-                                  placeholder={_userType === 'vendor' ? 'Enter FirstName' : 'Enter your First Name'}
+                                  placeholder={
+                                    _userType === "vendor"
+                                      ? "Enter FirstName"
+                                      : "Enter your First Name"
+                                  }
                                   value={signupData.firstName}
-                                  onChange={(e) => setSignupData({ ...signupData, firstName: e.target.value })}
-                                  style={{ paddingLeft: '45px', borderRadius: '10px' }}
+                                  onChange={(e) =>
+                                    setSignupData({
+                                      ...signupData,
+                                      firstName: e.target.value,
+                                    })
+                                  }
+                                  style={{
+                                    paddingLeft: "45px",
+                                    borderRadius: "10px",
+                                  }}
                                   required
                                 />
                               </div>
                             </Col>
                             <Col md={6}>
-                              <Form.Label>{_userType === 'vendor' ? 'LastName' : 'Last Name'}</Form.Label>
+                              <Form.Label>
+                                {_userType === "vendor"
+                                  ? "LastName"
+                                  : "Last Name"}
+                              </Form.Label>
                               <div className="position-relative">
                                 <FaUser
                                   className="position-absolute"
                                   style={{
-                                    left: '15px',
-                                    top: '50%',
-                                    transform: 'translateY(-50%)',
-                                    color: '#6c757d'
+                                    left: "15px",
+                                    top: "50%",
+                                    transform: "translateY(-50%)",
+                                    color: "#6c757d",
                                   }}
                                 />
                                 <Form.Control
                                   type="text"
-                                  placeholder={_userType === 'vendor' ? 'Enter LastName' : 'Enter your Last Name'}
+                                  placeholder={
+                                    _userType === "vendor"
+                                      ? "Enter LastName"
+                                      : "Enter your Last Name"
+                                  }
                                   value={signupData.lastName}
-                                  onChange={(e) => setSignupData({ ...signupData, lastName: e.target.value })}
-                                  style={{ paddingLeft: '45px', borderRadius: '10px' }}
+                                  onChange={(e) =>
+                                    setSignupData({
+                                      ...signupData,
+                                      lastName: e.target.value,
+                                    })
+                                  }
+                                  style={{
+                                    paddingLeft: "45px",
+                                    borderRadius: "10px",
+                                  }}
                                   required
                                 />
                               </div>
@@ -273,21 +348,29 @@ const Auth = () => {
                         <Form.Group className="mb-3">
                           <Form.Label>Email Address</Form.Label>
                           <div className="position-relative">
-                            <FaEnvelope 
-                              className="position-absolute" 
-                              style={{ 
-                                left: '15px', 
-                                top: '50%', 
-                                transform: 'translateY(-50%)',
-                                color: '#6c757d'
-                              }} 
+                            <FaEnvelope
+                              className="position-absolute"
+                              style={{
+                                left: "15px",
+                                top: "50%",
+                                transform: "translateY(-50%)",
+                                color: "#6c757d",
+                              }}
                             />
                             <Form.Control
                               type="email"
                               placeholder="Enter your email"
                               value={signupData.email}
-                              onChange={(e) => setSignupData({...signupData, email: e.target.value})}
-                              style={{ paddingLeft: '45px', borderRadius: '10px' }}
+                              onChange={(e) =>
+                                setSignupData({
+                                  ...signupData,
+                                  email: e.target.value,
+                                })
+                              }
+                              style={{
+                                paddingLeft: "45px",
+                                borderRadius: "10px",
+                              }}
                               required
                             />
                           </div>
@@ -296,21 +379,29 @@ const Auth = () => {
                         <Form.Group className="mb-3">
                           <Form.Label>Phone Number</Form.Label>
                           <div className="position-relative">
-                            <FaPhone 
-                              className="position-absolute" 
-                              style={{ 
-                                left: '15px', 
-                                top: '50%', 
-                                transform: 'translateY(-50%)',
-                                color: '#6c757d'
-                              }} 
+                            <FaPhone
+                              className="position-absolute"
+                              style={{
+                                left: "15px",
+                                top: "50%",
+                                transform: "translateY(-50%)",
+                                color: "#6c757d",
+                              }}
                             />
                             <Form.Control
                               type="tel"
                               placeholder="Enter your phone number"
                               value={signupData.phone}
-                              onChange={(e) => setSignupData({...signupData, phone: e.target.value})}
-                              style={{ paddingLeft: '45px', borderRadius: '10px' }}
+                              onChange={(e) =>
+                                setSignupData({
+                                  ...signupData,
+                                  phone: e.target.value,
+                                })
+                              }
+                              style={{
+                                paddingLeft: "45px",
+                                borderRadius: "10px",
+                              }}
                               required
                             />
                           </div>
@@ -344,21 +435,29 @@ const Auth = () => {
                         <Form.Group className="mb-3">
                           <Form.Label>Password</Form.Label>
                           <div className="position-relative">
-                            <FaLock 
-                              className="position-absolute" 
-                              style={{ 
-                                left: '15px', 
-                                top: '50%', 
-                                transform: 'translateY(-50%)',
-                                color: '#6c757d'
-                              }} 
+                            <FaLock
+                              className="position-absolute"
+                              style={{
+                                left: "15px",
+                                top: "50%",
+                                transform: "translateY(-50%)",
+                                color: "#6c757d",
+                              }}
                             />
                             <Form.Control
                               type="password"
                               placeholder="Create a password"
                               value={signupData.passwordHash}
-                              onChange={(e) => setSignupData({...signupData, passwordHash: e.target.value})}
-                              style={{ paddingLeft: '45px', borderRadius: '10px' }}
+                              onChange={(e) =>
+                                setSignupData({
+                                  ...signupData,
+                                  passwordHash: e.target.value,
+                                })
+                              }
+                              style={{
+                                paddingLeft: "45px",
+                                borderRadius: "10px",
+                              }}
                               required
                             />
                           </div>
@@ -367,21 +466,29 @@ const Auth = () => {
                         <Form.Group className="mb-4">
                           <Form.Label>Confirm Password</Form.Label>
                           <div className="position-relative">
-                            <FaLock 
-                              className="position-absolute" 
-                              style={{ 
-                                left: '15px', 
-                                top: '50%', 
-                                transform: 'translateY(-50%)',
-                                color: '#6c757d'
-                              }} 
+                            <FaLock
+                              className="position-absolute"
+                              style={{
+                                left: "15px",
+                                top: "50%",
+                                transform: "translateY(-50%)",
+                                color: "#6c757d",
+                              }}
                             />
                             <Form.Control
                               type="password"
                               placeholder="Confirm your password"
                               value={signupData.confirmPassword}
-                              onChange={(e) => setSignupData({...signupData, confirmPassword: e.target.value})}
-                              style={{ paddingLeft: '45px', borderRadius: '10px' }}
+                              onChange={(e) =>
+                                setSignupData({
+                                  ...signupData,
+                                  confirmPassword: e.target.value,
+                                })
+                              }
+                              style={{
+                                paddingLeft: "45px",
+                                borderRadius: "10px",
+                              }}
                               required
                             />
                           </div>
@@ -392,9 +499,10 @@ const Auth = () => {
                           variant="primary"
                           size="lg"
                           className="w-100 mb-3"
-                          style={{ borderRadius: '10px' }}
+                          style={{ borderRadius: "10px" }}
                         >
-                          Sign Up as {_userType === 'client' ? 'Client' : 'Vendor'}
+                          Sign Up as{" "}
+                          {_userType === "client" ? "Client" : "Vendor"}
                         </Button>
                       </Form>
                     </Tab>
