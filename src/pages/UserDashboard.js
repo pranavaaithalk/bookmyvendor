@@ -37,28 +37,10 @@ import {
   getClientEventDetails,
   getClientProfile,
   updateClientProfile,
+  getNotifications,
+  markNotificationRead,
 } from "../services/api";
 import ProfileImageUpload from "../services/ImageUpload";
-
-// const servicesList = [
-//   { name: "Catering", key: "catering", icon: "🍽️", color: "#f59e0b" },
-//   { name: "Decoration", key: "decoration", icon: "🎨", color: "#ec4899" },
-//   { name: "Venue", key: "venue", icon: "🏛️", color: "#6366f1" },
-//   { name: "Photography", key: "photography", icon: "📸", color: "#10b981" },
-//   { name: "Transportation", key: "transportation", icon: "🚗", color: "#8b5cf6" },
-//   { name: "Music & DJ", key: "music", icon: "🎵", color: "#f97316" },
-//   { name: "Flowers", key: "flowers", icon: "🌸", color: "#06b6d4" },
-//   { name: "Security", key: "security", icon: "🛡️", color: "#64748b" },
-// ];
-
-// const eventTypes = [
-//   { value: "Wedding", label: "Wedding", icon: "💒" },
-//   { value: "Birthday", label: "Birthday Party", icon: "🎂" },
-//   { value: "Conference", label: "Corporate Event", icon: "🏢" },
-//   { value: "Anniversary", label: "Anniversary", icon: "💕" },
-//   { value: "Graduation", label: "Graduation", icon: "🎓" },
-//   { value: "Baby Shower", label: "Baby Shower", icon: "👶" },
-// ];
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -102,10 +84,7 @@ const Dashboard = () => {
   const [payments, setPayments] = useState([
     { id: 'P-9001', bookingId: 'B-501', amount: 60000, date: '2025-06-30', method: 'UPI' },
   ]);
-  const [notifications, setNotifications] = useState([
-    { id: 'N-1', type: 'update', text: 'Grand Palace sent an updated offer for your venue booking.', time: '2h ago', unread: true },
-    { id: 'N-2', type: 'confirmation', text: 'Spicy Spoon Caterers confirmed your booking.', time: '1d ago', unread: false },
-  ]);
+  const [notifications, setNotifications] = useState([]);
   // Messages removed per requirement
   const [userProfile, setUserProfile] = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
@@ -145,6 +124,15 @@ const Dashboard = () => {
     }));
   };
 
+  const loadNotifications = async () => {
+    try {
+      const res = await getNotifications(sessionStorage.getItem("userId"));
+      setNotifications(res.data);
+    } catch (err) {
+      console.error("Failed to load notifications", err);
+    }
+  };
+
   useEffect(() => {
     const userId = sessionStorage.getItem("userId");
 
@@ -168,7 +156,6 @@ const Dashboard = () => {
     const loadEventDetails = async () => {
       try {
         const res = await getClientEventDetails(userId);
-        console.log('Event Details Response:', JSON.stringify(res.data));
         setEventDetails(res.data);
         setTotalEvents(res.data.length);
         setActiveEvents(res.data.filter(e => e.status !== 'completed'));
@@ -180,32 +167,8 @@ const Dashboard = () => {
 
     loadClientProfile();
     loadEventDetails();
+    loadNotifications();
   }, [navigate]);
-
-
-  
-  // Helper: invoice download
-  const downloadInvoice = (booking) => {
-    const due = booking.amount - booking.paid;
-    const content = `Invoice\n\nBooking: ${booking.id}\nVendor: ${booking.vendorName}\nService: ${booking.service}\nEvent: ${booking.eventId}\nAmount: ₹${booking.amount}\nPaid: ₹${booking.paid}\nDue: ₹${due}`;
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${booking.id}-invoice.txt`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-  };
-
-  // No service toggle/budget handlers needed in dashboard view
-
-  const toggleFavorite = (vendorId) => {
-    setFavorites(prev => 
-      prev.includes(vendorId) 
-        ? prev.filter(id => id !== vendorId)
-        : [...prev, vendorId]
-    );
-  };
 
   const toggleCompare = (vendor) => {
     setCompareList(prev => {
@@ -278,124 +241,6 @@ const Dashboard = () => {
     ]
   };
 
-  // Helper: flatten vendors for favorites
-  const allVendors = Object.values(recommendedVendors).flat();
-
-  // Helpers for Overview
-  const parseDate = (d) => new Date(d.replace(/-/g, '/'));
-  const today = new Date();
-  const upcomingBookings = [...bookings]
-    .filter(b => b.status !== 'Cancelled' && parseDate(b.date) >= today)
-    .sort((a, b) => parseDate(a.date) - parseDate(b.date))
-    .slice(0, 3);
-
-  const bookingSummary = {
-    total: events.length,
-    pending: events.filter(e => e.status?.toLowerCase().includes('pending')).length,
-    confirmed: events.filter(e => e.status === 'Confirmed').length,
-    completed: events.filter(e => e.status === 'Completed').length,
-  };
-
-  const VendorCard = ({ vendor, serviceType }) => (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      whileHover={{ y: -5 }}
-    >
-      <Card className="card-modern h-100 position-relative">
-        <div className="position-relative">
-          <Card.Img 
-            variant="top" 
-            src={vendor.image} 
-            style={{ height: '200px', objectFit: 'cover' }}
-          />
-          <div className="position-absolute top-0 end-0 p-2">
-            <Button
-              variant="link"
-              className="p-1 text-white"
-              onClick={() => toggleFavorite(vendor.id)}
-              style={{ background: 'rgba(0,0,0,0.5)', borderRadius: '50%' }}
-            >
-              <FaHeart color={favorites.includes(vendor.id) ? '#ef4444' : 'white'} />
-            </Button>
-          </div>
-          <Badge 
-            bg="warning" 
-            className="position-absolute bottom-0 start-0 m-2"
-          >
-            <FaStar className="me-1" />
-            {vendor.rating} ({vendor.reviews})
-          </Badge>
-        </div>
-        
-        <Card.Body className="d-flex flex-column">
-          <Card.Title className="d-flex justify-content-between align-items-start">
-            <span>{vendor.name}</span>
-            <Button
-              variant="outline-primary"
-              size="sm"
-              onClick={() => toggleCompare(vendor)}
-              disabled={compareList.length >= 3 && !compareList.find(v => v.id === vendor.id)}
-            >
-              <FaExchangeAlt />
-            </Button>
-          </Card.Title>
-          
-          <div className="mb-2">
-            <small className="text-muted d-flex align-items-center">
-              <FaMapMarkerAlt className="me-1" />
-              {vendor.location}
-            </small>
-          </div>
-          
-          <div className="mb-2">
-            <strong className="text-success">{vendor.price}</strong>
-          </div>
-          
-          <div className="mb-3">
-            {vendor.specialties.map((specialty, index) => (
-              <Badge key={index} bg="light" text="dark" className="me-1 mb-1">
-                {specialty}
-              </Badge>
-            ))}
-          </div>
-          
-          <div className="mt-auto">
-            <Row className="g-2">
-              <Col>
-                <Button 
-                  variant="outline-primary" 
-                  size="sm" 
-                  className="w-100"
-                  onClick={() => {
-                    setSelectedVendor(vendor);
-                    setShowVendorModal(true);
-                  }}
-                >
-                  View Details
-                </Button>
-              </Col>
-              <Col>
-                <Button 
-                  variant="primary" 
-                  size="sm" 
-                  className="w-100"
-                  onClick={() => {
-                    setBookingVendor(vendor);
-                    setShowBookingModal(true);
-                  }}
-                >
-                  Book Now
-                </Button>
-              </Col>
-            </Row>
-          </div>
-        </Card.Body>
-      </Card>
-    </motion.div>
-  );
-
   if (loadingProfile) {
     return (
       <Container className="my-5 text-center">
@@ -407,6 +252,16 @@ const Dashboard = () => {
   if (!userProfile) {
     return null;
   }
+
+  const Dnow = new Date();
+  const parseForNoti = (dateString) => {
+    const date = new Date(dateString);
+    const diffTime = Math.abs(Dnow - date);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return "Today";
+    if (diffDays === 1) return "Yesterday";
+    return `${diffDays} days ago`;
+  };
 
 
   return (
@@ -499,24 +354,44 @@ const Dashboard = () => {
               </Card>
             </Col>
             <Col md={4}>
-              <Card className="card-modern p-3 h-100">
-                <h5 className="mb-3">
-                  <FaEnvelope className="me-2" />
-                  Notifications
-                </h5>
+              <Card className="card-modern p-2 h-100">
+                <div
+                  className="mb-2 d-flex justify-content-between"
+                >
+                  <h5 className="mb-3">
+                    <FaEnvelope className="me-2" />
+                    Notifications
+                  </h5>
+                  {notifications.length>0 && (<Button
+                    variant="outline-primary"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        var list = notifications.map(n => n.notificationId);
+                        const payload = { list: list };
+                        await markNotificationRead(payload);
+                        setNotifications([]);
+                        loadNotifications();
+                      } catch (err) {
+                        console.error("Failed to mark notifications as read", err);
+                      }
+                    }}
+                  >Clear</Button>
+                  )}
+                </div>
                 {notifications.length === 0 && (
                   <div className="text-muted">No new notifications</div>
                 )}
                 {notifications.map((n) => (
-                  <div
-                    key={n.id}
-                    className="mb-2 d-flex justify-content-between"
-                  >
-                    <span>{n.text}</span>
-                    <Badge bg={n.unread ? "primary" : "secondary"}>
-                      {n.time}
-                    </Badge>
-                  </div>
+                  <Card className="card-modern p-1 mb-2">
+                    <div
+                      key={n.notificationId}
+                      className="mb-2 d-flex justify-content-between"
+                    >
+                      <span>{n.message}</span>
+                      <Badge bg="primary">{parseForNoti(n.createdAt)}</Badge>
+                    </div>
+                  </Card>
                 ))}
               </Card>
             </Col>

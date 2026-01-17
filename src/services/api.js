@@ -133,3 +133,13 @@ export const getVendorReviews = async (vendorId) => {
   const resp = await axios.get(`${BASE_URL}/vendors/reviews/${vendorId}`);
   return resp;
 };
+
+export const getNotifications = async (userId) => {
+  const resp = await axios.get(`${BASE_URL}/users/getNoti/${userId}`);
+  return resp;
+};
+
+export const markNotificationRead = async (payload) => {
+  const resp = await axios.post(`${BASE_URL}/users/readNoti`,payload);
+  return resp;
+};
