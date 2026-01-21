@@ -7,7 +7,6 @@ import {
   Row,
   Col,
   Card,
-  Alert,
   ProgressBar,
 } from "react-bootstrap";
 import { motion, AnimatePresence } from "framer-motion";
@@ -16,7 +15,6 @@ import {
   FaMapMarkerAlt,
   FaUsers,
   FaCheck,
-  FaTimes,
 } from "react-icons/fa";
 import { raiseBookingRequest, createEvent } from "../services/api";
 
@@ -84,7 +82,6 @@ const BookingModal = ({
 
   const raiseRequest = async(data,eventId) => {
       if (!data || typeof data !== "object") return null;
-      const bookingData = { ...(data.bookingData || {}) };
       const budgets = data.budgets || {};
       const selectedServices = data.selectedServices || {};
       const selectedVendors = data.selectedVendors || {};

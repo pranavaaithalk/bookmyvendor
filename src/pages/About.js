@@ -1,7 +1,7 @@
 import React from 'react';
 import { Container, Row, Col, Card, Button } from 'react-bootstrap';
 import { motion } from 'framer-motion';
-import { FaRocket, FaUsers, FaHeart, FaAward, FaHandshake, FaLightbulb, FaShieldAlt, FaClock } from 'react-icons/fa';
+import { FaRocket, FaUsers, FaHeart, FaAward, FaHandshake, FaLightbulb, FaShieldAlt } from 'react-icons/fa';
 
 const About = () => {
   const values = [
@@ -55,19 +55,6 @@ const About = () => {
       image: '/images/team/soham misra.jpg'
     }
   ];
-
-
-  const milestones = [
-    { description: "Ideation & Planning" },
-    { description: "System Design" },
-    { description: "Frontend" },
-    { description: "on progrss" },
-    { description: "..." },
-    { description: "..." },
-    { description: "..." }
-  ];
-    
-
 
   return (
     <Container className="my-5">

@@ -6,14 +6,12 @@ import {
   Card,
   Button,
   Form,
-  Badge,
   Modal,
 } from "react-bootstrap";
 import { motion } from "framer-motion";
 import {
   FaSearch,
   FaStar,
-  FaHeart,
   FaExchangeAlt,
   FaMapMarkerAlt,
   FaCalendarAlt,
@@ -97,7 +95,6 @@ const SearchAndBook = () => {
   const [budgets, setBudgets] = useState({});
 
   // UI
-  const [favorites, setFavorites] = useState([]);
   const [compareList, setCompareList] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
@@ -247,13 +244,6 @@ const SearchAndBook = () => {
     setBudgets((prev) => ({ ...prev, [String(serviceId)]: value }));
   };
 
-  const toggleFavorite = (vendorId) => {
-    setFavorites((prev) =>
-      prev.includes(vendorId)
-        ? prev.filter((id) => id !== vendorId)
-        : [...prev, vendorId]
-    );
-  };
 
   const toggleCompare = (vendor) => {
     setCompareList((prev) => {

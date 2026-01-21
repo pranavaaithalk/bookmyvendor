@@ -11,7 +11,6 @@ import ProtectedRoute from './components/ProtectedRoute';
 import About from './pages/About';
 import Gallery from './pages/Gallery';
 import Contact from './pages/Contact';
-import Events from './pages/Events';
 import EventDetailsPage from './components/EventDetailsPage';
 
 function App() {

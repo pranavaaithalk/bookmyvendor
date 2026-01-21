@@ -11,22 +11,16 @@ import {
   Tab,
   Tabs,
   Form,
-  Alert,
 } from "react-bootstrap";
 import { motion } from 'framer-motion';
 import {
   FaSearch,
-  FaStar,
-  FaHeart,
   FaEye,
-  FaPhone,
   FaEnvelope,
   FaMapMarkerAlt,
   FaCalendarAlt,
   FaUsers,
-  FaRupeeSign,
   FaExchangeAlt,
-  FaClock,
   FaSignOutAlt,
   FaUser,
   FaCheckCircle,
@@ -44,28 +38,8 @@ import ProfileImageUpload from "../services/ImageUpload";
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  // Removed search-specific filters from dashboard
-  const [selectedServices, setSelectedServices] = useState({
-    // catering: true,
-    // decoration: false,
-    // venue: true,
-    // photography: true,
-    // transportation: false,
-  });
-  const [budgets, setBudgets] = useState({
-    catering: "200000",
-    venue: "15000",
-    photography: "15000",
-  });
-  // Removed vendor search states
-  const [showVendorModal, setShowVendorModal] = useState(false);
-  const [selectedVendor, setSelectedVendor] = useState(null);
-  const [favorites, setFavorites] = useState([]);
   const [compareList, setCompareList] = useState([]);
   const [activeTab, setActiveTab] = useState("overview");
-  const [showBookingModal, setShowBookingModal] = useState(false);
-  const [bookingVendor, setBookingVendor] = useState(null);
-  const [vendorReviews, setVendorReviews] = useState({});
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profileForm, setProfileForm] = useState(null);
   const [showAlert, setShowAlert] = useState(false);
@@ -741,119 +715,6 @@ const Dashboard = () => {
         </Tab>
       </Tabs>
 
-      {/* Booking Modal */}
-      <BookingModal
-        show={showBookingModal}
-        onHide={() => setShowBookingModal(false)}
-        vendor={bookingVendor}
-        selectedServices={selectedServices}
-        budgets={budgets}
-      />
-
-      {/* Vendor Details Modal with Reviews */}
-      <Modal
-        show={showVendorModal}
-        onHide={() => setShowVendorModal(false)}
-        size="xl"
-        centered
-      >
-        <Modal.Header closeButton>
-          <Modal.Title>{selectedVendor?.name} - Reviews & Details</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {selectedVendor && (
-            <div>
-              <Row className="mb-4">
-                <Col md={4}>
-                  <img
-                    src={selectedVendor.image}
-                    alt={selectedVendor.name}
-                    className="img-fluid rounded"
-                    style={{
-                      width: "100%",
-                      height: "250px",
-                      objectFit: "cover",
-                    }}
-                  />
-                </Col>
-                <Col md={8}>
-                  <div className="mb-3">
-                    <h4>{selectedVendor.name}</h4>
-                    <p className="text-muted mb-2">
-                      <FaMapMarkerAlt className="me-1" />
-                      {selectedVendor.location}
-                    </p>
-                    <div className="d-flex align-items-center mb-2">
-                      <FaStar className="text-warning me-1" />
-                      <span className="fw-bold">{selectedVendor.rating}</span>
-                      <span className="text-muted ms-1">
-                        ({selectedVendor.reviews} reviews)
-                      </span>
-                    </div>
-                    <p className="text-success fw-bold mb-3">
-                      {selectedVendor.price}
-                    </p>
-                  </div>
-
-                  <div className="mb-3">
-                    <h6>Contact Information</h6>
-                    <p className="mb-1">
-                      <FaPhone className="me-2 text-primary" />
-                      {selectedVendor.phone}
-                    </p>
-                    <p className="mb-1">
-                      <FaEnvelope className="me-2 text-primary" />
-                      {selectedVendor.email}
-                    </p>
-                  </div>
-
-                  <div className="mb-3">
-                    <h6>Specialties</h6>
-                    {selectedVendor.specialties?.map((specialty, index) => (
-                      <Badge key={index} bg="primary" className="me-1 mb-1">
-                        {specialty}
-                      </Badge>
-                    ))}
-                  </div>
-                </Col>
-              </Row>
-
-              {/* Reviews Section */}
-              <hr />
-              <ReviewSystem
-                vendorId={selectedVendor.id}
-                reviews={vendorReviews[selectedVendor.id] || []}
-                onAddReview={(review) => {
-                  setVendorReviews((prev) => ({
-                    ...prev,
-                    [selectedVendor.id]: [
-                      ...(prev[selectedVendor.id] || []),
-                      review,
-                    ],
-                  }));
-                }}
-                onUpdateReview={(updatedReview) => {
-                  setVendorReviews((prev) => ({
-                    ...prev,
-                    [selectedVendor.id]: (prev[selectedVendor.id] || []).map(
-                      (review) =>
-                        review.id === updatedReview.id ? updatedReview : review
-                    ),
-                  }));
-                }}
-                onDeleteReview={(reviewId) => {
-                  setVendorReviews((prev) => ({
-                    ...prev,
-                    [selectedVendor.id]: (prev[selectedVendor.id] || []).filter(
-                      (review) => review.id !== reviewId
-                    ),
-                  }));
-                }}
-              />
-            </div>
-          )}
-        </Modal.Body>
-      </Modal>
 
       <Modal
         show={showProfileModal}

@@ -2,7 +2,7 @@ import React from 'react';
 import { Container } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FaUser, FaStore, FaStar, FaCalendarCheck } from 'react-icons/fa';
+import { FaUser, FaStore } from 'react-icons/fa';
 import './HeroSection.css';
 
 const HeroSection = () => {

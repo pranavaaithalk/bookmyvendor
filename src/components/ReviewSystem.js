@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Card, Button, Form, Row, Col, Modal, Badge, ProgressBar } from 'react-bootstrap';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaStar, FaStarHalfAlt, FaRegStar, FaThumbsUp, FaThumbsDown, FaReply, FaFlag, FaUser, FaCalendarAlt, FaEdit, FaTrash } from 'react-icons/fa';
+import { FaStar, FaStarHalfAlt, FaRegStar, FaThumbsUp, FaReply, FaFlag, FaUser, FaCalendarAlt, FaEdit, FaTrash } from 'react-icons/fa';
 
 const ReviewSystem = ({ vendorId, reviews = [], onAddReview, onUpdateReview, onDeleteReview }) => {
   const [showReviewModal, setShowReviewModal] = useState(false);

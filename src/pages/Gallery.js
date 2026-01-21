@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Container, Row, Col, Card, Modal, Badge, Button } from 'react-bootstrap';
 import { motion } from 'framer-motion';
-import { FaPlay, FaHeart, FaShare, FaEye } from 'react-icons/fa';
+import { FaHeart, FaShare, FaEye } from 'react-icons/fa';
 
 const Gallery = () => {
   const [selectedImage, setSelectedImage] = useState(null);

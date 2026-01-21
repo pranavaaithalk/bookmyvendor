@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Container, Row, Col, Card, Form, Button, Tab, Tabs, Alert } from 'react-bootstrap';
 import { motion } from 'framer-motion';
-import { FaUser, FaStore, FaEnvelope, FaLock, FaPhone, FaBuilding } from 'react-icons/fa';
+import { FaUser, FaStore, FaEnvelope, FaLock, FaPhone } from 'react-icons/fa';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { UserLogin, UserRegister } from '../services/api';
 

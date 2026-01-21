@@ -1,9 +1,12 @@
 import axios from 'axios';
 
-const BASE_URL = 'http://localhost:8081/api'; // Change when backend ready
+const BASE_URL = process.env.REACT_APP_BEURL; // Change when backend ready
 
-export const UserLogin = (loginData) =>
-  axios.post(`${BASE_URL}/users/login`, loginData);
+export const UserLogin = (loginData) => {
+  console.log('URL', BASE_URL);
+  const re = axios.post(`${BASE_URL}/users/login`, loginData);
+  return re;
+};
 
 export const UserRegister = (registerData) =>
   axios.post(`${BASE_URL}/users/signup`, registerData);
