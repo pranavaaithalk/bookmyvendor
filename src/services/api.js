@@ -1,61 +1,58 @@
-import axios from 'axios';
-
-const BASE_URL = process.env.REACT_APP_BEURL; // Change when backend ready
+import api from './axiosInstance';
 
 export const UserLogin = (loginData) => {
-  console.log('URL', BASE_URL);
-  const re = axios.post(`${BASE_URL}/users/login`, loginData);
+  const re = api.post(`/users/login`, loginData);
   return re;
 };
 
 export const UserRegister = (registerData) =>
-  axios.post(`${BASE_URL}/users/signup`, registerData);
+  api.post(`/users/signup`, registerData);
 
 export const fetchVendorsByService = (location, service, budget) =>
-  axios.get(`${BASE_URL}/vendors`, { params: { location, service, budget } });
+  api.get(`/vendors`, { params: { location, service, budget } });
 
 export const fetchUserEvents = (userId) =>
-  axios.get(`${BASE_URL}/users/${userId}/events`);
+  api.get(`/users/${userId}/events`);
 
 export const fetchBookings = (vendorId) =>
-  axios.get(`${BASE_URL}/vendors/${vendorId}/bookings`);
+  api.get(`/vendors/${vendorId}/bookings`);
 
 export const fetchAllEventTypes = () => 
-  axios.get(`${BASE_URL}/events/getEventTypes`);
+  api.get(`/events/getEventTypes`);
 
 export const fetchAllServicesAvailable = () =>
-  axios.get(`${BASE_URL}/events/getAllServices`);
+  api.get(`/events/getAllServices`);
 
 export const fetchRecommendedVendors = async (params) => {
-  const resp = await axios.get(`${BASE_URL}/events/top-vendors`, { params });
+  const resp = await api.get(`/events/top-vendors`, { params });
   return resp;
 };
 
 export const VendorOnBoarding = async (params) => {
-  const resp = await axios.post(`${BASE_URL}/vendors/profile`, params);
+  const resp = await api.post(`/vendors/profile`, params);
   return resp;
 };
 
 export const getVendorProfile = async (vendorId) => {
-  const resp = await axios.get(`${BASE_URL}/vendors/profile/${vendorId}`);
+  const resp = await api.get(`/vendors/profile/${vendorId}`);
   return resp;
 }
 
 export const raiseBookingRequest = async (payload) => {
-  const resp = await axios.post(
-    `${BASE_URL}/events/create-service-request`,
+  const resp = await api.post(
+    `/events/create-service-request`,
     payload
   );
   return resp;
 }
 
 export const createEvent = async (eventData) => {
-  const resp = await axios.post(`${BASE_URL}/events/newEvent`, eventData);
+  const resp = await api.post(`/events/newEvent`, eventData);
   return resp;
 }
 
 export const updateVendorProfile = async (vendorId, payload) => {
-  return axios.put(`${BASE_URL}/vendors/profile/${vendorId}`, payload, {
+  return api.put(`/vendors/profile/${vendorId}`, payload, {
     headers: {
       "Content-Type": "application/json",
     },
@@ -63,34 +60,34 @@ export const updateVendorProfile = async (vendorId, payload) => {
 };
 
 export const getVendorBookings = async (vendorId) => {
-  return axios.get(`${BASE_URL}/bookings/vendor/${vendorId}`);
+  return api.get(`/bookings/vendor/${vendorId}`);
 };
 
 export const getVendorServiceRequests = async (vendorId) => {
-  const resp = axios.get(`${BASE_URL}/bookings/serviceRequests/${vendorId}`);
+  const resp = api.get(`/bookings/serviceRequests/${vendorId}`);
   console.log('Service Requests Response:', resp);
   return resp;
 };
 
 export const respondToServiceRequest = (vendorRequestId, response) => {
-  return axios.post(
-    `${BASE_URL}/events/respond-service-request/${vendorRequestId}`,
+  return api.post(
+    `/events/respond-service-request/${vendorRequestId}`,
     { response: response }
   );
 };
 
 export const getClientEventDetails = async (cId) => {
-  const resp = await axios.get(`${BASE_URL}/events/client/${cId}`);
+  const resp = await api.get(`/events/client/${cId}`);
   return resp;
 };
 
 export const getClientProfile = async (clientId) => {
-  const resp = await axios.get(`${BASE_URL}/users/${clientId}`);
+  const resp = await api.get(`/users/${clientId}`);
   return resp;
 }
 
 export const updateClientProfile = async (clientId, payload) => {
-  return axios.put(`${BASE_URL}/users/${clientId}`, payload, {
+  return api.put(`/users/${clientId}`, payload, {
     headers: {
       "Content-Type": "application/json",
     },
@@ -98,51 +95,51 @@ export const updateClientProfile = async (clientId, payload) => {
 };
 
 export const confirmEvent = async (eventId) => {
-  const resp = await axios.post(`${BASE_URL}/events/confirm`, { eventId : eventId });
+  const resp = await api.post(`/events/confirm`, { eventId : eventId });
   return resp;
 };
 
 export const getEventDetails = async (eventId) => {
-  const resp = await axios.get(
-    `${BASE_URL}/events/eventDetailsResp/${eventId}`
+  const resp = await api.get(
+    `/events/eventDetailsResp/${eventId}`
   );
   return resp;
 };
 
 export const getFreshVendorsForRequest = async (rId,city,gCount)=>{
-  const resp = await axios.get(`${BASE_URL}/events/next-top-vendors`, {
+  const resp = await api.get(`/events/next-top-vendors`, {
     params: { requestId: rId, city: city, guestCount: gCount },
   });
   return resp;
 };
 
 export const sendFreshVendorRequest = async (payload) => {
-  const resp = await axios.post(
-    `${BASE_URL}/events/create-fresh-request`,
+  const resp = await api.post(
+    `/events/create-fresh-request`,
     payload
   );
   return resp;
 };
 
 export const submitReviews = async (eventId,payload) => {
-  const resp = await axios.post(
-    `${BASE_URL}/events/complete/${eventId}`,
+  const resp = await api.post(
+    `/events/complete/${eventId}`,
     payload
   );
   return resp;
 };
 
 export const getVendorReviews = async (vendorId) => {
-  const resp = await axios.get(`${BASE_URL}/vendors/reviews/${vendorId}`);
+  const resp = await api.get(`/vendors/reviews/${vendorId}`);
   return resp;
 };
 
 export const getNotifications = async (userId) => {
-  const resp = await axios.get(`${BASE_URL}/users/getNoti/${userId}`);
+  const resp = await api.get(`/users/getNoti/${userId}`);
   return resp;
 };
 
 export const markNotificationRead = async (payload) => {
-  const resp = await axios.post(`${BASE_URL}/users/readNoti`,payload);
+  const resp = await api.post(`/users/readNoti`,payload);
   return resp;
 };
