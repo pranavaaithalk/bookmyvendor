@@ -5,6 +5,10 @@ import java.util.List;
 
 public class VendorProfileDto {
     private Long vendorId;
+    // vendor type: LOCAL for DB vendors, GOOGLE for external Google Places vendors
+    public enum VendorType { LOCAL, GOOGLE }
+    private VendorType vendorType = VendorType.LOCAL;
+
     private String businessName;
     private String userName;
     private String businessDescription;
@@ -25,6 +29,7 @@ public class VendorProfileDto {
     public VendorProfileDto() {}
 
     public VendorProfileDto(Long vendorId,
+                            VendorType vendorType,
                             String businessName,
                             String userName,
                             String businessDescription,
@@ -42,6 +47,7 @@ public class VendorProfileDto {
                             Integer yearsOfExperience,
                             List<VendorServiceDto> vendorServices) {
         this.vendorId = vendorId;
+        this.vendorType = vendorType == null ? VendorType.LOCAL : vendorType;
         this.businessName = businessName;
         this.userName = userName;
         this.businessDescription = businessDescription;
@@ -78,6 +84,7 @@ public class VendorProfileDto {
     public Integer getYearsOfExperience() { return yearsOfExperience; }
     public List<VendorServiceDto> getVendorServices() { return vendorServices; }
     public Integer getTotalRevenue() { return totalRevenue; }
+    public VendorType getVendorType() { return vendorType; }
 
     // mapping helper: call in transactional context so lazy associations can be accessed
     public static VendorProfileDto from(Final.Year.Project.bmv.entity.VendorProfile vp, java.util.List<Final.Year.Project.bmv.entity.VendorService> vendorServicesList) {
@@ -88,6 +95,7 @@ public class VendorProfileDto {
         }
         return new VendorProfileDto(
                 vp.getVendorId(),
+                VendorType.LOCAL,
                 vp.getBusinessName(),
                 vp.getUser().getFirstName(),
                 vp.getBusinessDescription(),

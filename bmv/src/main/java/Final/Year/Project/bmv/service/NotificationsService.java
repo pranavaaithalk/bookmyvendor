@@ -40,4 +40,21 @@ public class NotificationsService {
     public void deleteNotification(Long id) {
         notificationsRepository.deleteById(id);
     }
+
+    public List<Notifications> getNotiByUser(Long uid){
+        List<Notifications> list=notificationsRepository.findByUser_UserIdAndIsReadFalseOrderByCreatedAtDesc(uid);
+        int i= Math.min(list.size(), 4);
+        return list.subList(0,i);
+    }
+
+    public void readNoti(List<Long> nid){
+        nid.forEach(n->{
+            Notifications noti=notificationsRepository.findById(n).orElse(null);
+            if(noti!=null){
+                noti.setRead(true);
+                notificationsRepository.saveAndFlush(noti);
+            }
+        });
+        return;
+    }
 }

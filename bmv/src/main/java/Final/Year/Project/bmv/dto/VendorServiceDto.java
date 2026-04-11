@@ -21,6 +21,7 @@ public class VendorServiceDto {
     public final String vendorCity;
     private final Long vendorId;
     private final String businessLogoUrl;
+    private final String externalPlaceId;
 
     public VendorServiceDto(Long vendorServiceId,
                             Long serviceId,
@@ -35,7 +36,8 @@ public class VendorServiceDto {
                             BigDecimal vendorRating,
                             String vendorCity,
                             Long vendorId,
-                            String businessLogoUrl) {
+                            String businessLogoUrl,
+                            String externalPlaceId) {
         this.vendorServiceId = vendorServiceId;
         this.serviceId = serviceId;
         this.title = title;
@@ -50,6 +52,7 @@ public class VendorServiceDto {
         this.vendorCity = vendorCity;
         this.vendorId = vendorId;
         this.businessLogoUrl=businessLogoUrl;
+        this.externalPlaceId = externalPlaceId;
     }
 
     public Long getVendorServiceId() { return vendorServiceId; }
@@ -66,6 +69,7 @@ public class VendorServiceDto {
     public String getVendorCity() { return vendorCity; }
     public Long getVendorId() { return vendorId; }
     public String getBusinessLogoUrl() { return businessLogoUrl; }
+    public String getExternalPlaceId() { return externalPlaceId; }
 
     /**
      * Map from JPA entity to DTO. Call this from your service layer (within transaction).
@@ -87,7 +91,8 @@ public class VendorServiceDto {
                 vs.getVendor().getRating(),
                 vs.getVendor().getCity(),
                 vs.getVendor().getVendorId(),
-                vs.getVendor().getBusinessLogoUrl()
+                vs.getVendor().getBusinessLogoUrl(),
+                null
         );
     }
 }

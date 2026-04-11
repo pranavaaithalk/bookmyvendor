@@ -9,8 +9,6 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
@@ -29,6 +27,9 @@ public class EventsService {
     private BookingRepository bookingRepository;
     @Autowired
     private VendorProfileRepository vendorProfileRepository;
+
+    @Autowired
+    private TwillioService twillioService;
 
     public Events createEvents(Events events) {
         return eventsRepository.save(events);
@@ -169,6 +170,15 @@ public class EventsService {
 
         event.setStatus(Events.Status.COMPLETED);
         eventsRepository.save(event);
+
+        try {
+            String name = client != null ? (client.getFirstName() + " " + client.getLastName()).trim() : "";
+            String date = event.getEventDate() != null ? event.getEventDate().toString() : "";
+            twillioService.sendEventCompleted(client != null ? client.getPhone() : null, name, date);
+        } catch (Exception ex) {
+            // Keep event completion success even if WhatsApp fails
+            ex.printStackTrace();
+        }
     }
 
 }

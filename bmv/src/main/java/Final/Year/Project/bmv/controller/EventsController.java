@@ -5,6 +5,7 @@ import Final.Year.Project.bmv.dto.EventDto;
 import Final.Year.Project.bmv.dto.VendorServiceDto;
 import Final.Year.Project.bmv.entity.*;
 import Final.Year.Project.bmv.service.*;
+import Final.Year.Project.bmv.service.GooglePlacesService;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -20,7 +21,6 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/events")
-@CrossOrigin(origins = "http://localhost:3000")
 public class EventsController {
 
     @Autowired private EventsService eventsService;
@@ -33,6 +33,9 @@ public class EventsController {
     @Autowired private BookingService bookingsService;
     @Autowired private EventTypeService eventTypeService;
     @Autowired private UsersService usersService;
+    @Autowired private TwillioService twillioService;
+    @Autowired private GooglePlacesService googlePlacesService;
+    @Autowired private VendorInviteService vendorInviteService;
 
     // List available services for event configuration
     @GetMapping("/getAllServices")
@@ -47,21 +50,31 @@ public class EventsController {
         String city = map.get("city");
         LocalDate eventDate = LocalDate.parse(map.get("eventDate"));
         Integer guestCount = Integer.parseInt(map.get("guestCount"));
+        // First try DB-backed query for top vendors
+        List<VendorService> dbList = vendorServiceService.findTopVendorsForService(serviceId, city, guestCount, java.util.Collections.emptyList());
+        List<VendorServiceDto> dbDtos = dbList.stream().map(VendorServiceDto::from).toList();
 
-        // Filter VendorService by serviceId and vendor city and availability (simulate review/availability filtering)
-        List<VendorService> filtered = vendorServiceService.getAllVendorServices().stream()
-                .filter(vs -> vs.getService().getServiceId().equals(serviceId)
-                        && vs.getVendor().getCity().equalsIgnoreCase(city)
-                        && vs.isAvailable()
-                        && (vs.getMinGuests() == null || guestCount >= vs.getMinGuests())
-                        && (vs.getMaxGuests() == null || guestCount <= vs.getMaxGuests()))
-                .sorted((a, b) -> b.getVendor().getRating().compareTo(a.getVendor().getRating()))
-                .limit(5)
-                .collect(Collectors.toList());
-        List<VendorServiceDto> dtos = filtered.stream()
-                .map(VendorServiceDto::from)
-                .toList();
-        return ResponseEntity.ok(dtos);
+        // If fewer than 5 results, supplement with Google Places API
+        if (dbDtos.size() < 5) {
+            try {
+                Services svc = servicesService.getServiceById(serviceId);
+                String serviceName = svc != null ? svc.getName() : map.getOrDefault("serviceName", "");
+                int need = 5 - dbDtos.size();
+                List<VendorServiceDto> google = googlePlacesService.searchPlacesForService(serviceName, city, need);
+
+                // Merge with DB first (DB vendors higher priority)
+                List<VendorServiceDto> merged = new ArrayList<>();
+                merged.addAll(dbDtos);
+                merged.addAll(google);
+                return ResponseEntity.ok(merged);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                // fallback to return DB results even if small
+                return ResponseEntity.ok(dbDtos);
+            }
+        }
+
+        return ResponseEntity.ok(dbDtos);
     }
 
     // Client chooses a vendor for a service; service request is sent [expect: eventId, serviceId, vendorServiceId, budgetMin, budgetMax, guestCount, requirements, eventDate]
@@ -70,32 +83,59 @@ public class EventsController {
         List<Map<String, String>> servicesList = payload.getServices();
         Events event = eventsService.getEventsById(Long.parseLong(payload.getEventId()));
         servicesList.forEach(map -> {
-        Services service = servicesService.getServiceById(Long.parseLong(map.get("serviceId")));
-        VendorProfile vendor = vendorProfileService.getVendorProfileById(Long.parseLong(map.get("vendorId")));
+            Services service = servicesService.getServiceById(Long.parseLong(map.get("serviceId")));
+            Long vendorId = Long.parseLong(map.get("vendorId"));
 
-        ServiceRequest sr = ServiceRequest.builder()
-                .event(event)
-                .service(service)
-                .budgetMin(new java.math.BigDecimal(0))
-                .budgetMax(new java.math.BigDecimal(map.getOrDefault("budget", "0")))
-                .guestCount(event.getGuestCount())
-                .eventDate(event.getEventDate())
-                .status(ServiceRequest.Status.OPEN)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .build();
-        sr = serviceRequestService.createServiceRequest(sr);
+            ServiceRequest sr = ServiceRequest.builder()
+                    .event(event)
+                    .service(service)
+                    .budgetMin(new java.math.BigDecimal(0))
+                    .budgetMax(new java.math.BigDecimal(map.getOrDefault("budget", "0")))
+                    .guestCount(event.getGuestCount())
+                    .eventDate(event.getEventDate())
+                    .status(ServiceRequest.Status.OPEN)
+                    .createdAt(LocalDateTime.now())
+                    .updatedAt(LocalDateTime.now())
+                    .build();
+            sr = serviceRequestService.createServiceRequest(sr);
 
-        VendorServiceRequest vsr = VendorServiceRequest.builder()
-                .serviceRequest(sr)
-                .vendor(vendor)
-                .proposedAmount(sr.getBudgetMax())
-                .message("Service request for " + service.getName())
-                .status(VendorServiceRequest.Status.PENDING)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .build();
-        vendorServiceRequestService.createVendorServiceRequest(vsr);
+            if (vendorId != null && vendorId >= 0) {
+                // Local vendor - create VendorServiceRequest record
+                VendorProfile vendor = vendorProfileService.getVendorProfileById(vendorId);
+                VendorServiceRequest vsr = VendorServiceRequest.builder()
+                        .serviceRequest(sr)
+                        .vendor(vendor)
+                        .proposedAmount(sr.getBudgetMax())
+                        .message("Service request for " + service.getName())
+                        .status(VendorServiceRequest.Status.PENDING)
+                        .createdAt(LocalDateTime.now())
+                        .updatedAt(LocalDateTime.now())
+                        .build();
+                vendorServiceRequestService.createVendorServiceRequest(vsr);
+            } else {
+                // Google-sourced vendor: persist invite + SMS with signup deep link (VendorServiceRequest created after vendor completes profile)
+                try {
+                    String vendorName = map.getOrDefault("vendorName", service.getName());
+                    String phone = googlePlacesService.getPhoneForVendorUniqueId(vendorId);
+                    if ((phone == null || phone.isBlank()) && map.containsKey("externalPlaceId")) {
+                        String pid = map.get("externalPlaceId");
+                        phone = googlePlacesService.getPhoneForPlaceId(pid);
+                    }
+                    String placeId = map.getOrDefault("externalPlaceId", null);
+                    VendorInvite invite = vendorInviteService.createForGoogleVendor(sr, phone, vendorName, placeId);
+                    String signupUrl = vendorInviteService.buildSignupUrl(invite.getToken());
+                    twillioService.sendVendorInvite(
+                            phone,
+                            vendorName,
+                            event.getTitle(),
+                            service.getName(),
+                            event.getEventDate().toString(),
+                            signupUrl
+                    );
+                } catch (Exception ex) {
+                    System.err.println("Error sending vendor invite SMS (Google vendor): " + ex.getMessage());
+                }
+            }
         });
 
         return ResponseEntity.ok("Event Created");
@@ -128,6 +168,16 @@ public class EventsController {
                     .createdAt(LocalDateTime.now())
                     .build();
             notificationsService.createNotification(notification);
+
+            try {
+                Users client = event.getClient();
+                String customerName = client != null ? (client.getFirstName() + " " + client.getLastName()).trim() : "";
+                String serviceName = vsr.getServiceRequest().getService() != null ? vsr.getServiceRequest().getService().getName() : "";
+                String eventDate = event.getEventDate() != null ? event.getEventDate().toString() : "";
+                twillioService.sendVendorRejected(client != null ? client.getPhone() : null, customerName, serviceName, eventDate);
+            } catch (Exception ex) {
+                System.err.println("Error sending SMS vendor_rejected: " + ex.getMessage());
+            }
             return ResponseEntity.ok("Vendor response updated");
         }
 
@@ -161,6 +211,16 @@ public class EventsController {
                     .createdAt(LocalDateTime.now())
                     .build();
             notificationsService.createNotification(notification);
+
+            try {
+                Users client = event.getClient();
+                String customerName = client != null ? (client.getFirstName() + " " + client.getLastName()).trim() : "";
+                String bookingName = vsr.getServiceRequest().getService() != null ? vsr.getServiceRequest().getService().getName() : "";
+                String eventDate = event.getEventDate() != null ? event.getEventDate().toString() : "";
+                twillioService.sendVendorConfirmed(client != null ? client.getPhone() : null, customerName, bookingName, eventDate);
+            } catch (Exception ex) {
+                System.err.println("Error sending SMS vendor_confirmed: " + ex.getMessage());
+            }
 
             return ResponseEntity.ok("Vendor accepted and booking confirmed.");
         }
@@ -296,32 +356,16 @@ public class EventsController {
             @RequestParam String city,
             @RequestParam Integer guestCount
     ) {
+        // Load the service request to determine the requested service
         ServiceRequest sr = serviceRequestService.getServiceRequestById(requestId);
-
         Long serviceId = sr.getService().getServiceId();
 
-        List<Long> rejectedVendorIds =
-                vendorServiceRequestService.getRejectedVendorsId(requestId);
+        // Get vendor ids that already rejected this service request
+        List<Long> rejectedVendorIds = vendorServiceRequestService.getRejectedVendorsId(requestId);
 
-        List<VendorService> filtered = vendorServiceService.getAllVendorServices()
-                .stream()
-                .filter(vs ->
-                        vs.getService().getServiceId().equals(serviceId)
-                                && vs.getVendor().getCity().equalsIgnoreCase(city)
-                                && vs.isAvailable()
-                                && (vs.getMinGuests() == null || guestCount >= vs.getMinGuests())
-                                && (vs.getMaxGuests() == null || guestCount <= vs.getMaxGuests())
-                                && !rejectedVendorIds.contains(vs.getVendor().getVendorId())
-                )
-                .sorted((a, b) ->
-                        b.getVendor().getRating().compareTo(a.getVendor().getRating()))
-                .limit(5)
-                .toList();
-
-        List<VendorServiceDto> dtos = filtered.stream()
-                .map(VendorServiceDto::from)
-                .toList();
-
+        // Delegate to service method that queries DB (with pagination) and applies exclusions
+        List<VendorService> top = vendorServiceService.findTopVendorsForService(serviceId, city, guestCount, rejectedVendorIds);
+        List<VendorServiceDto> dtos = top.stream().map(VendorServiceDto::from).toList();
         return ResponseEntity.ok(dtos);
     }
 

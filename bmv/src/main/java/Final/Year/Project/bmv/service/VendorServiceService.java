@@ -6,6 +6,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.stream.Collectors;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 @Service
 public class VendorServiceService {
@@ -47,6 +50,23 @@ public class VendorServiceService {
 
     public void deleteVendorService(Long id) {
         vendorServiceRepository.deleteById(id);
+    }
+
+    /**
+     * DB-backed query to fetch top vendors for a service in a city with guest count constraints.
+     * Excludes any vendor ids passed in excludedVendorIds (filtering done after DB fetch).
+     */
+    public List<VendorService> findTopVendorsForService(Long serviceId, String city, Integer guestCount, List<Long> excludedVendorIds) {
+        // fetch a slightly larger page from DB, then apply exclusion and limit to desired size
+        PageRequest pr = PageRequest.of(0, 15, Sort.by(Sort.Direction.DESC, "vendor.rating"));
+        var page = vendorServiceRepository.findTopVendorsForService(serviceId, city, guestCount, pr);
+        List<VendorService> list = page.getContent();
+        if (excludedVendorIds != null && !excludedVendorIds.isEmpty()) {
+            list = list.stream()
+                    .filter(vs -> vs.getVendor() == null || !excludedVendorIds.contains(vs.getVendor().getVendorId()))
+                    .collect(Collectors.toList());
+        }
+        return list.stream().limit(5).collect(Collectors.toList());
     }
 
 }

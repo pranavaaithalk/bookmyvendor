@@ -24,5 +24,7 @@ public interface VendorServiceRequestRepository extends JpaRepository<VendorServ
     List<VendorServiceRequest> findByServiceRequest_RequestIdAndStatusIn(Long requestId, List<VendorServiceRequest.Status> list);
     List<VendorServiceRequest> findByServiceRequest_Event_EventId(Long eventId);
 
+    Optional<VendorServiceRequest> findByServiceRequest_RequestIdAndVendor_VendorId(Long requestId, Long vendorId);
+
 }
 

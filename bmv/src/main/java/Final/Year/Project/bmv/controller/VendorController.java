@@ -18,7 +18,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/vendors")
-@CrossOrigin(origins = "http://localhost:3000")
 public class VendorController {
 
     @Autowired
@@ -37,6 +36,9 @@ public class VendorController {
     private VendorServiceService vendorServiceService;
     @Autowired
     private ReviewsService reviewsService;
+
+    @Autowired
+    private VendorInviteService vendorInviteService;
 
     // 1. Get list of new service requests for vendor
     @GetMapping("/requests/new")
@@ -72,6 +74,7 @@ public class VendorController {
     // "userId", "businessName", "businessDescription", "businessAddress", "city", "state", "country",
     // "pincode", "businessPhone", "businessEmail", "businessLogoUrl", "yearsOfExperience", "isFeatured", "isApproved", "rating", "totalReviews"
     @PostMapping("/profile")
+    @Transactional(rollbackFor = Exception.class)
     public ResponseEntity<?> createVendorProfile(@RequestBody Map<String, String> map) {
         System.out.println(map.toString());
         try{
@@ -143,6 +146,12 @@ public class VendorController {
 
                         vendorServiceService.createVendorService(vendorService);
                     }
+                }
+            }
+            if (map.containsKey("vendorInviteToken")) {
+                String t = map.get("vendorInviteToken");
+                if (t != null && !t.isBlank()) {
+                    vendorInviteService.attachToVendorProfile(t.trim(), createdProfile);
                 }
             }
             return ResponseEntity.ok(Map.of("vendorId",createdProfile.getVendorId(),"userId",createdProfile.getUser().getUserId()));

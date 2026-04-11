@@ -1,6 +1,5 @@
 package Final.Year.Project.bmv.service;
 
-import Final.Year.Project.bmv.entity.VendorAvailability;
 import Final.Year.Project.bmv.entity.VendorProfile;
 import Final.Year.Project.bmv.repository.VendorProfileRepository;
 import org.springframework.beans.factory.annotation.Autowired;

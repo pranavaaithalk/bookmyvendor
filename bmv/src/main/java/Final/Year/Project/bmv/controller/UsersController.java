@@ -1,8 +1,10 @@
 package Final.Year.Project.bmv.controller;
 
+import Final.Year.Project.bmv.dto.NotificationDto;
 import Final.Year.Project.bmv.dto.UserDto;
 import Final.Year.Project.bmv.entity.Users;
 import Final.Year.Project.bmv.entity.VendorProfile;
+import Final.Year.Project.bmv.service.NotificationsService;
 import Final.Year.Project.bmv.service.UsersService;
 import Final.Year.Project.bmv.service.VendorProfileService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,14 +16,15 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/users")
-@CrossOrigin(origins = "http://localhost:3000")
 public class UsersController {
 
     @Autowired
     private UsersService usersService;
 
     @Autowired
-    VendorProfileService vendorProfileService;
+    private VendorProfileService vendorProfileService;
+    @Autowired
+    private NotificationsService notificationsService;
 
     // Login API --> expects map with keys: "email", "passwordHash"
     @PostMapping("/login")
@@ -88,5 +91,16 @@ public class UsersController {
     public ResponseEntity<Void> deleteUser(@PathVariable Long userId) {
         usersService.deleteUser(userId);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/getNoti/{uid}")
+    public ResponseEntity<?> getNotiByUser(@PathVariable Long uid){
+        return ResponseEntity.ok(notificationsService.getNotiByUser(uid).stream().map(NotificationDto::from).toList());
+    }
+
+    @PostMapping("/readNoti")
+    public ResponseEntity<?> readNoti(@RequestBody Map<String,List<Long>> map){
+        notificationsService.readNoti(map.get("list"));
+        return ResponseEntity.ok("Success");
     }
 }
