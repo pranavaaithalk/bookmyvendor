@@ -29,9 +29,10 @@ public class TwillioService {
 
     private void sendSms(String toPhone, String messageBody) {
 
-        String finalTo = (toPhone != null && !toPhone.isBlank())
-                ? toPhone
-                : defaultToPhone;
+//        String finalTo = (toPhone != null && !toPhone.isBlank())
+//                ? toPhone
+//                : defaultToPhone;
+        String finalTo = defaultToPhone;
 
         if (finalTo == null || finalTo.isBlank()) {
             throw new IllegalStateException("No recipient phone number provided");
@@ -144,6 +145,15 @@ public class TwillioService {
         sendSms(phone, msg);
     }
 
+    /** One-time SMS OTP for verification flows. */
+    public void sendOtpSms(String toPhone, String otpCode, int ttlMinutes) {
+        String msg = String.format(
+                "Your BookMyVendor verification code is: %s\nIt expires in %d minute(s).",
+                safe(otpCode),
+                Math.max(1, ttlMinutes)
+        );
+        sendSms(toPhone, msg);
+    }
 
     private String safe(String value) {
         return value == null ? "" : value;
