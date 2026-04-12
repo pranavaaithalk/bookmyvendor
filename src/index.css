@@ -357,3 +357,16 @@ code {
 .padding-responsive {
   padding: clamp(1rem, 3vw, 2rem);
 }
+
+/* Auth (and similar): left icon + control — flex alignment; avoids broken absolute centering with is-invalid */
+.auth-input-icon-group .input-group-text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.85rem;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.auth-input-icon-group > .form-control:focus {
+  z-index: 3;
+}

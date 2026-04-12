@@ -1,72 +1,223 @@
-import React, { useState } from 'react';
-import { Container, Row, Col, Card, Form, Button, Tab, Tabs, Alert } from 'react-bootstrap';
-import { motion } from 'framer-motion';
-import { FaUser, FaStore, FaEnvelope, FaLock, FaPhone } from 'react-icons/fa';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { UserLogin, UserRegister } from '../services/api';
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import {
+  Container,
+  Row,
+  Col,
+  Card,
+  Form,
+  Button,
+  Tab,
+  Tabs,
+  Alert,
+  Spinner,
+  InputGroup,
+} from "react-bootstrap";
+import { motion } from "framer-motion";
+import { FaUser, FaStore, FaEnvelope, FaLock, FaPhone } from "react-icons/fa";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { UserLogin, UserRegister, getPublicVendorInvite } from "../services/api";
+import OtpVerificationModal from "../components/OtpVerificationModal";
+import { toIndiaE164 } from "../utils/phoneE164";
+import {
+  VENDOR_INVITE_TOKEN_KEY,
+  VENDOR_INVITE_DATA_KEY,
+  PENDING_VENDOR_SIGNUP_EMAIL_KEY,
+} from "../constants/vendorInviteStorage";
+import { validateLogin, validateSignup } from "../utils/formValidation";
+
+function splitNameHint(displayName) {
+  if (!displayName || !String(displayName).trim()) {
+    return { first: "", last: "" };
+  }
+  const parts = String(displayName).trim().split(/\s+/);
+  if (parts.length === 1) return { first: parts[0], last: "" };
+  return { first: parts[0], last: parts.slice(1).join(" ") };
+}
 
 const Auth = () => {
-  const [activeTab, setActiveTab] = useState('login');
-  const [_userType, set_userType] = useState('client');
+  const [activeTab, setActiveTab] = useState("login");
+  const [_userType, set_userType] = useState("client");
   const [searchParams] = useSearchParams();
   const [error, setError] = useState(null);
   const navigate = useNavigate();
-  
-  // Get user type from URL params if redirected from header buttons
-  React.useEffect(() => {
-    const type = searchParams.get('type');
+
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [invitePayload, setInvitePayload] = useState(null);
+  const [inviteFetchError, setInviteFetchError] = useState(null);
+  const [signupOtpStep, setSignupOtpStep] = useState(null);
+  const [signupSubmitting, setSignupSubmitting] = useState(false);
+
+  const vendorInviteParam = searchParams.get("vendorInvite");
+
+  const clearInviteStorage = useCallback(() => {
+    sessionStorage.removeItem(VENDOR_INVITE_TOKEN_KEY);
+    sessionStorage.removeItem(VENDOR_INVITE_DATA_KEY);
+  }, []);
+
+  useEffect(() => {
+    const type = searchParams.get("type");
     if (type) {
       set_userType(type);
     }
   }, [searchParams]);
 
+  useEffect(() => {
+    if (!vendorInviteParam || !vendorInviteParam.trim()) {
+      clearInviteStorage();
+      setInvitePayload(null);
+      setInviteFetchError(null);
+      setInviteLoading(false);
+      return;
+    }
+
+    const token = vendorInviteParam.trim();
+    let cancelled = false;
+    setInviteLoading(true);
+    setInviteFetchError(null);
+    setInvitePayload(null);
+
+    sessionStorage.setItem(VENDOR_INVITE_TOKEN_KEY, token);
+
+    (async () => {
+      try {
+        const res = await getPublicVendorInvite(token);
+        const data = res?.data;
+        if (cancelled) return;
+
+        setInvitePayload(data);
+        sessionStorage.setItem(VENDOR_INVITE_DATA_KEY, JSON.stringify(data));
+
+        const expiredInvalid =
+          data?.valid === false && data?.expired === true;
+        const consumed = data?.consumed === true;
+
+        if (expiredInvalid || consumed) {
+          clearInviteStorage();
+        }
+
+        if (data?.valid === true && !consumed) {
+          set_userType("vendor");
+          setActiveTab("signup");
+          const phone =
+            data.contactPhone || data.suggestedBusinessPhone || "";
+          setSignupData((prev) => ({
+            ...prev,
+            phone: phone || prev.phone,
+            userType: "vendor",
+          }));
+        }
+      } catch (err) {
+        if (cancelled) return;
+        console.error("Vendor invite lookup failed", err);
+        setInviteFetchError(
+          err?.response?.data?.message ||
+            err?.message ||
+            "Could not validate this invite link. Try again or sign up without an invite."
+        );
+        clearInviteStorage();
+        setInvitePayload(null);
+      } finally {
+        if (!cancelled) setInviteLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [vendorInviteParam, clearInviteStorage]);
+
   const [loginData, setLoginData] = useState({
-    email: '',
-    passwordHash: ''
+    email: "",
+    passwordHash: "",
   });
 
   const [signupData, setSignupData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    passwordHash: '',
-    confirmPassword: '',
-    phone: '',
-    userType: ''
+    firstName: "",
+    lastName: "",
+    email: "",
+    passwordHash: "",
+    confirmPassword: "",
+    phone: "",
+    userType: "",
   });
+
+  const loginValidation = useMemo(
+    () =>
+      validateLogin({
+        email: loginData.email,
+        passwordHash: loginData.passwordHash,
+      }),
+    [loginData.email, loginData.passwordHash]
+  );
+
+  const signupValidation = useMemo(
+    () => validateSignup(signupData),
+    [signupData]
+  );
+
+  const loginErrors = loginValidation.errors;
+  const signupErrors = signupValidation.errors;
+
+  const inviteExpired =
+    invitePayload && invitePayload.valid === false && invitePayload.expired === true;
+  const inviteConsumed = invitePayload && invitePayload.consumed === true;
+  const inviteValid = invitePayload && invitePayload.valid === true && !inviteConsumed;
+
+  const namePlaceholders = inviteValid
+    ? {
+        first:
+          splitNameHint(invitePayload.vendorDisplayName).first ||
+          splitNameHint(invitePayload.suggestedBusinessName).first ||
+          "First name",
+        last:
+          splitNameHint(invitePayload.vendorDisplayName).last ||
+          splitNameHint(invitePayload.suggestedBusinessName).last ||
+          "Last name",
+      }
+    : { first: "Enter your first name", last: "Enter your last name" };
+
+  const signupInviteBlocked =
+    !!vendorInviteParam &&
+    (inviteLoading ||
+      inviteExpired ||
+      inviteConsumed ||
+      (inviteFetchError && !invitePayload));
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    try{
+    setError(null);
+    if (!loginValidation.valid) return;
+    try {
       const response = await UserLogin(loginData);
-    
-      if (response.status === 200 && response.data.userType === 'client') {
+
+      const loginType = (response?.data?.userType || "").toString().toLowerCase();
+      if (response.status === 200 && loginType === "client") {
         sessionStorage.setItem("userId", response?.data?.userId);
-        navigate('/user-dashboard');
-      } else if(response.status === 200 && response.data.userType === 'vendor') {
+        navigate("/user-dashboard");
+      } else if (response.status === 200 && loginType === "vendor") {
         sessionStorage.setItem("userId", response?.data?.userId);
         sessionStorage.setItem("vendorId", response?.data?.vendorId);
-        if(response.data.vendorId === -1){
-          navigate('/vendor-onboarding');
+        if (response.data.vendorId === -1) {
+          navigate("/vendor-onboarding");
           return;
         }
-        navigate('/vendor-dashboard');
+        navigate("/vendor-dashboard");
       }
-    }catch(error){
+    } catch (error) {
       console.log(error);
-      if(error.response && error.response.status === 401){
-        setError('Invalid email or password. Please try again.');
+      if (error.response && error.response.status === 401) {
+        setError("Invalid email or password. Please try again.");
       }
     }
   };
 
-  const handlePass = () =>{
-    if(_userType === 'client'){
+  const handlePass = () => {
+    if (_userType === "client") {
       setLoginData({
-        email: 'e@e.c',
-        passwordHash: 'r'
+        email: "e@e.c",
+        passwordHash: "r",
       });
-    }else{
+    } else {
       setLoginData({
         email: "coastalfeast@gmail.com",
         passwordHash: "vendor123",
@@ -74,37 +225,87 @@ const Auth = () => {
     }
   };
 
-  const handleSignup = async(e) => {
-    e.preventDefault();
-    if (signupData.passwordHash !== signupData.confirmPassword) {
-      alert('Passwords do not match!');
+  const buildSignupBody = () => {
+    const userTypeEnum = _userType === "vendor" ? "VENDOR" : "CLIENT";
+    return {
+      email: signupData.email,
+      firstName: signupData.firstName,
+      lastName: signupData.lastName,
+      phone: signupData.phone,
+      passwordHash: signupData.passwordHash,
+      userType: userTypeEnum,
+    };
+  };
+
+  const runSignupAfterOtp = async () => {
+    setSignupOtpStep(null);
+    setSignupSubmitting(true);
+    setError(null);
+    try {
+      const body = buildSignupBody();
+      const response = await UserRegister(body);
+
+      const resType = (response?.data?.userType || "").toString().toLowerCase();
+      if (response.status === 200 && resType === "client") {
+        clearInviteStorage();
+        sessionStorage.removeItem(PENDING_VENDOR_SIGNUP_EMAIL_KEY);
+        sessionStorage.setItem("userId", response?.data?.id);
+        navigate("/user-dashboard");
+      } else if (response.status === 200 && resType === "vendor") {
+        sessionStorage.setItem("userId", response?.data?.id);
+        sessionStorage.setItem(
+          PENDING_VENDOR_SIGNUP_EMAIL_KEY,
+          signupData.email || ""
+        );
+        navigate("/vendor-onboarding");
+      }
+    } catch (error) {
+      console.log(error);
+      const msg =
+        error?.response?.data?.message ||
+        error?.response?.data ||
+        error?.message ||
+        "Sign up failed.";
+      setError(typeof msg === "string" ? msg : JSON.stringify(msg));
+    } finally {
+      setSignupSubmitting(false);
+    }
+  };
+
+  const startSignupVerification = () => {
+    setError(null);
+    if (!signupValidation.valid) return;
+
+    if (vendorInviteParam && (inviteExpired || inviteConsumed)) {
+      setError(
+        inviteExpired
+          ? "This invite link has expired. You can still sign up as a vendor without this link."
+          : "This link was already used."
+      );
       return;
     }
-    
-    try{
-      signupData.userType = _userType;
-      const response = await UserRegister(signupData);
-    
-      if (response.status === 200 && response.data.userType === 'client') {
-        sessionStorage.setItem("userId", response?.data?.id);
-        navigate('/user-dashboard');
-      } else if(response.status === 200 && response.data.userType === 'vendor') {
-        sessionStorage.setItem('userId', response?.data?.id);
-        navigate('/vendor-onboarding');
-      }
-    }catch(error){
-      console.log(error);
+
+    const e164 = toIndiaE164(signupData.phone);
+    if (!e164 || e164.replace(/\D/g, "").length < 12) {
+      setError(
+        "Enter a valid 10-digit Indian mobile number so we can send an SMS code."
+      );
+      return;
     }
+
+    setSignupOtpStep("email");
   };
 
   const containerVariants = {
     hidden: { opacity: 0, y: 50 },
-    visible: { 
-      opacity: 1, 
+    visible: {
+      opacity: 1,
       y: 0,
-      transition: { duration: 0.6, ease: "easeOut" }
-    }
+      transition: { duration: 0.6, ease: "easeOut" },
+    },
   };
+
+  const showInviteToggle = !vendorInviteParam || (!inviteLoading && !inviteValid);
 
   return (
     <div
@@ -139,42 +340,94 @@ const Auth = () => {
                     </p>
                   </div>
 
+                  {vendorInviteParam && inviteLoading && (
+                    <Alert variant="info" className="d-flex align-items-center gap-2">
+                      <Spinner animation="border" size="sm" />
+                      <span>Checking your invite link…</span>
+                    </Alert>
+                  )}
+
+                  {inviteFetchError && (
+                    <Alert variant="warning">{inviteFetchError}</Alert>
+                  )}
+
+                  {inviteExpired && (
+                    <Alert variant="danger" role="alert">
+                      This invite link has expired.
+                    </Alert>
+                  )}
+
+                  {inviteConsumed && (
+                    <Alert variant="warning" role="alert">
+                      This link was already used.
+                    </Alert>
+                  )}
+
+                  {inviteValid && invitePayload && (
+                    <Alert variant="success" role="status">
+                      <strong>You&apos;re invited</strong>
+                      {invitePayload.eventTitle ? (
+                        <>
+                          {" "}
+                          for event: <strong>{invitePayload.eventTitle}</strong>
+                        </>
+                      ) : null}
+                      {invitePayload.serviceName ? (
+                        <div className="small mt-1 text-muted">
+                          Service: {invitePayload.serviceName}
+                        </div>
+                      ) : null}
+                    </Alert>
+                  )}
+
                   {/* User Type Selection */}
-                  <div className="mb-4">
-                    <div className="d-flex justify-content-center gap-3">
-                      <Button
-                        variant={
-                          _userType === "client" ? "primary" : "outline-primary"
-                        }
-                        onClick={() => set_userType("client")}
-                        className="d-flex align-items-center gap-2 px-4"
-                        style={{ borderRadius: "25px" }}
-                      >
-                        <FaUser />
-                        I'm a Client
-                      </Button>
-                      <Button
-                        variant={
-                          _userType === "vendor" ? "primary" : "outline-primary"
-                        }
-                        onClick={() => set_userType("vendor")}
-                        className="d-flex align-items-center gap-2 px-4"
-                        style={{ borderRadius: "25px" }}
-                      >
-                        <FaStore />
-                        I'm a Vendor
-                      </Button>
+                  {showInviteToggle && (
+                    <div className="mb-4">
+                      <div className="d-flex justify-content-center gap-3">
+                        <Button
+                          variant={
+                            _userType === "client" ? "primary" : "outline-primary"
+                          }
+                          onClick={() => set_userType("client")}
+                          className="d-flex align-items-center gap-2 px-4"
+                          style={{ borderRadius: "25px" }}
+                        >
+                          <FaUser />
+                          I&apos;m a Client
+                        </Button>
+                        <Button
+                          variant={
+                            _userType === "vendor" ? "primary" : "outline-primary"
+                          }
+                          onClick={() => set_userType("vendor")}
+                          className="d-flex align-items-center gap-2 px-4"
+                          style={{ borderRadius: "25px" }}
+                        >
+                          <FaStore />
+                          I&apos;m a Vendor
+                        </Button>
+                      </div>
                     </div>
-                  </div>
+                  )}
+
+                  {inviteValid && (
+                    <p className="text-center small text-muted mb-3">
+                      Complete signup as a <strong>vendor</strong> to continue
+                      with your invite.
+                    </p>
+                  )}
 
                   <Tabs
                     activeKey={activeTab}
-                    onSelect={(k) => setActiveTab(k)}
+                    onSelect={(k) => {
+                      setActiveTab(k);
+                      setError(null);
+                    }}
                     className="mb-4"
                     justify
                   >
                     <Tab eventKey="login" title="Login">
-                      <Form onSubmit={handleLogin}>
+                      <Form onSubmit={handleLogin} noValidate>
                         {error && (
                           <Alert
                             variant="danger"
@@ -186,64 +439,58 @@ const Auth = () => {
                         )}
                         <Form.Group className="mb-3">
                           <Form.Label>Email Address</Form.Label>
-                          <div className="position-relative">
-                            <FaEnvelope
-                              className="position-absolute"
-                              style={{
-                                left: "15px",
-                                top: "50%",
-                                transform: "translateY(-50%)",
-                                color: "#6c757d",
-                              }}
-                            />
+                          <InputGroup
+                            hasValidation
+                            className="auth-input-icon-group rounded-3 shadow-sm"
+                          >
+                            <InputGroup.Text className="bg-light text-secondary border-end-0">
+                              <FaEnvelope aria-hidden />
+                            </InputGroup.Text>
                             <Form.Control
                               type="email"
                               placeholder="Enter your email"
                               value={loginData.email}
-                              onChange={(e) =>
+                              onChange={(e) => {
                                 setLoginData({
                                   ...loginData,
                                   email: e.target.value,
-                                })
-                              }
-                              style={{
-                                paddingLeft: "45px",
-                                borderRadius: "10px",
+                                });
                               }}
-                              required
+                              isInvalid={!!loginErrors.email}
+                              className="border-start-0"
                             />
-                          </div>
+                            <Form.Control.Feedback type="invalid">
+                              {loginErrors.email}
+                            </Form.Control.Feedback>
+                          </InputGroup>
                         </Form.Group>
 
                         <Form.Group className="mb-4">
                           <Form.Label>Password</Form.Label>
-                          <div className="position-relative">
-                            <FaLock
-                              className="position-absolute"
-                              style={{
-                                left: "15px",
-                                top: "50%",
-                                transform: "translateY(-50%)",
-                                color: "#6c757d",
-                              }}
-                            />
+                          <InputGroup
+                            hasValidation
+                            className="auth-input-icon-group rounded-3 shadow-sm"
+                          >
+                            <InputGroup.Text className="bg-light text-secondary border-end-0">
+                              <FaLock aria-hidden />
+                            </InputGroup.Text>
                             <Form.Control
                               type="password"
                               placeholder="Enter your password"
                               value={loginData.passwordHash}
-                              onChange={(e) =>
+                              onChange={(e) => {
                                 setLoginData({
                                   ...loginData,
                                   passwordHash: e.target.value,
-                                })
-                              }
-                              style={{
-                                paddingLeft: "45px",
-                                borderRadius: "10px",
+                                });
                               }}
-                              required
+                              isInvalid={!!loginErrors.password}
+                              className="border-start-0"
                             />
-                          </div>
+                            <Form.Control.Feedback type="invalid">
+                              {loginErrors.password}
+                            </Form.Control.Feedback>
+                          </InputGroup>
                         </Form.Group>
                         <Button onClick={handlePass} className="w-100 mb-3">
                           Fill
@@ -255,6 +502,7 @@ const Auth = () => {
                           size="lg"
                           className="w-100 mb-3"
                           style={{ borderRadius: "10px" }}
+                          disabled={!loginValidation.valid}
                         >
                           Login as{" "}
                           {_userType === "client" ? "Client" : "Vendor"}
@@ -263,262 +511,303 @@ const Auth = () => {
                     </Tab>
 
                     <Tab eventKey="signup" title="Sign Up">
-                      <Form onSubmit={handleSignup}>
+                      <Form
+                        onSubmit={(e) => e.preventDefault()}
+                        aria-busy={inviteLoading}
+                        noValidate
+                      >
+                        {error && (
+                          <Alert
+                            variant="danger"
+                            onClose={() => setError(null)}
+                            dismissible
+                            className="mb-3"
+                          >
+                            {error}
+                          </Alert>
+                        )}
                         <Form.Group className="mb-3">
                           <Row>
                             <Col md={6} className="mb-3 mb-md-0">
                               <Form.Label>
                                 {_userType === "vendor"
-                                  ? "FirstName"
+                                  ? "First name"
                                   : "First Name"}
                               </Form.Label>
-                              <div className="position-relative">
-                                <FaUser
-                                  className="position-absolute"
-                                  style={{
-                                    left: "15px",
-                                    top: "50%",
-                                    transform: "translateY(-50%)",
-                                    color: "#6c757d",
-                                  }}
-                                />
+                              <InputGroup
+                                hasValidation
+                                className="auth-input-icon-group rounded-3 shadow-sm"
+                              >
+                                <InputGroup.Text className="bg-light text-secondary border-end-0">
+                                  <FaUser aria-hidden />
+                                </InputGroup.Text>
                                 <Form.Control
                                   type="text"
-                                  placeholder={
-                                    _userType === "vendor"
-                                      ? "Enter FirstName"
-                                      : "Enter your First Name"
-                                  }
+                                  placeholder={namePlaceholders.first}
                                   value={signupData.firstName}
-                                  onChange={(e) =>
+                                  onChange={(e) => {
                                     setSignupData({
                                       ...signupData,
                                       firstName: e.target.value,
-                                    })
-                                  }
-                                  style={{
-                                    paddingLeft: "45px",
-                                    borderRadius: "10px",
+                                    });
                                   }}
-                                  required
+                                  isInvalid={!!signupErrors.firstName}
+                                  className="border-start-0"
+                                  disabled={
+                                    !!vendorInviteParam &&
+                                    (inviteLoading ||
+                                      inviteExpired ||
+                                      inviteConsumed)
+                                  }
                                 />
-                              </div>
+                                <Form.Control.Feedback type="invalid">
+                                  {signupErrors.firstName}
+                                </Form.Control.Feedback>
+                              </InputGroup>
                             </Col>
                             <Col md={6}>
                               <Form.Label>
                                 {_userType === "vendor"
-                                  ? "LastName"
+                                  ? "Last name"
                                   : "Last Name"}
                               </Form.Label>
-                              <div className="position-relative">
-                                <FaUser
-                                  className="position-absolute"
-                                  style={{
-                                    left: "15px",
-                                    top: "50%",
-                                    transform: "translateY(-50%)",
-                                    color: "#6c757d",
-                                  }}
-                                />
+                              <InputGroup
+                                hasValidation
+                                className="auth-input-icon-group rounded-3 shadow-sm"
+                              >
+                                <InputGroup.Text className="bg-light text-secondary border-end-0">
+                                  <FaUser aria-hidden />
+                                </InputGroup.Text>
                                 <Form.Control
                                   type="text"
-                                  placeholder={
-                                    _userType === "vendor"
-                                      ? "Enter LastName"
-                                      : "Enter your Last Name"
-                                  }
+                                  placeholder={namePlaceholders.last}
                                   value={signupData.lastName}
-                                  onChange={(e) =>
+                                  onChange={(e) => {
                                     setSignupData({
                                       ...signupData,
                                       lastName: e.target.value,
-                                    })
-                                  }
-                                  style={{
-                                    paddingLeft: "45px",
-                                    borderRadius: "10px",
+                                    });
                                   }}
-                                  required
+                                  isInvalid={!!signupErrors.lastName}
+                                  className="border-start-0"
+                                  disabled={
+                                    !!vendorInviteParam &&
+                                    (inviteLoading ||
+                                      inviteExpired ||
+                                      inviteConsumed)
+                                  }
                                 />
-                              </div>
+                                <Form.Control.Feedback type="invalid">
+                                  {signupErrors.lastName}
+                                </Form.Control.Feedback>
+                              </InputGroup>
                             </Col>
                           </Row>
                         </Form.Group>
 
                         <Form.Group className="mb-3">
                           <Form.Label>Email Address</Form.Label>
-                          <div className="position-relative">
-                            <FaEnvelope
-                              className="position-absolute"
-                              style={{
-                                left: "15px",
-                                top: "50%",
-                                transform: "translateY(-50%)",
-                                color: "#6c757d",
-                              }}
-                            />
+                          <InputGroup
+                            hasValidation
+                            className="auth-input-icon-group rounded-3 shadow-sm"
+                          >
+                            <InputGroup.Text className="bg-light text-secondary border-end-0">
+                              <FaEnvelope aria-hidden />
+                            </InputGroup.Text>
                             <Form.Control
                               type="email"
                               placeholder="Enter your email"
                               value={signupData.email}
-                              onChange={(e) =>
+                              onChange={(e) => {
                                 setSignupData({
                                   ...signupData,
                                   email: e.target.value,
-                                })
-                              }
-                              style={{
-                                paddingLeft: "45px",
-                                borderRadius: "10px",
+                                });
                               }}
-                              required
+                              isInvalid={!!signupErrors.email}
+                              className="border-start-0"
+                              disabled={
+                                !!vendorInviteParam &&
+                                (inviteLoading ||
+                                  inviteExpired ||
+                                  inviteConsumed)
+                              }
+                              autoComplete="email"
                             />
-                          </div>
+                            <Form.Control.Feedback type="invalid">
+                              {signupErrors.email}
+                            </Form.Control.Feedback>
+                          </InputGroup>
                         </Form.Group>
 
                         <Form.Group className="mb-3">
                           <Form.Label>Phone Number</Form.Label>
-                          <div className="position-relative">
-                            <FaPhone
-                              className="position-absolute"
-                              style={{
-                                left: "15px",
-                                top: "50%",
-                                transform: "translateY(-50%)",
-                                color: "#6c757d",
-                              }}
-                            />
+                          <InputGroup
+                            hasValidation
+                            className="auth-input-icon-group rounded-3 shadow-sm"
+                          >
+                            <InputGroup.Text className="bg-light text-secondary border-end-0">
+                              <FaPhone aria-hidden />
+                            </InputGroup.Text>
                             <Form.Control
                               type="tel"
-                              placeholder="Enter your phone number"
+                              placeholder={
+                                inviteValid
+                                  ? "From your invite (you can edit if needed)"
+                                  : "Enter your phone number"
+                              }
                               value={signupData.phone}
-                              onChange={(e) =>
+                              onChange={(e) => {
                                 setSignupData({
                                   ...signupData,
                                   phone: e.target.value,
-                                })
-                              }
-                              style={{
-                                paddingLeft: "45px",
-                                borderRadius: "10px",
+                                });
                               }}
-                              required
+                              isInvalid={!!signupErrors.phone}
+                              className="border-start-0"
+                              disabled={
+                                !!vendorInviteParam &&
+                                (inviteLoading ||
+                                  inviteExpired ||
+                                  inviteConsumed)
+                              }
+                              autoComplete="tel"
                             />
-                          </div>
+                            <Form.Control.Feedback type="invalid">
+                              {signupErrors.phone}
+                            </Form.Control.Feedback>
+                          </InputGroup>
                         </Form.Group>
-
-                        {/* {_userType === 'vendor' && (
-                          <Form.Group className="mb-3">
-                            <Form.Label>Company/Business Type</Form.Label>
-                            <div className="position-relative">
-                              <FaBuilding 
-                                className="position-absolute" 
-                                style={{ 
-                                  left: '15px', 
-                                  top: '50%', 
-                                  transform: 'translateY(-50%)',
-                                  color: '#6c757d'
-                                }} 
-                              />
-                              <Form.Control
-                                type="text"
-                                placeholder="e.g., Photography, Catering, Decoration"
-                                value={signupData.company}
-                                onChange={(e) => setSignupData({...signupData, company: e.target.value})}
-                                style={{ paddingLeft: '45px', borderRadius: '10px' }}
-                                required
-                              />
-                            </div>
-                          </Form.Group>
-                        )} */}
 
                         <Form.Group className="mb-3">
                           <Form.Label>Password</Form.Label>
-                          <div className="position-relative">
-                            <FaLock
-                              className="position-absolute"
-                              style={{
-                                left: "15px",
-                                top: "50%",
-                                transform: "translateY(-50%)",
-                                color: "#6c757d",
-                              }}
-                            />
+                          <InputGroup
+                            hasValidation
+                            className="auth-input-icon-group rounded-3 shadow-sm"
+                          >
+                            <InputGroup.Text className="bg-light text-secondary border-end-0">
+                              <FaLock aria-hidden />
+                            </InputGroup.Text>
                             <Form.Control
                               type="password"
                               placeholder="Create a password"
                               value={signupData.passwordHash}
-                              onChange={(e) =>
+                              onChange={(e) => {
                                 setSignupData({
                                   ...signupData,
                                   passwordHash: e.target.value,
-                                })
-                              }
-                              style={{
-                                paddingLeft: "45px",
-                                borderRadius: "10px",
+                                });
                               }}
-                              required
+                              isInvalid={!!signupErrors.passwordHash}
+                              className="border-start-0"
+                              disabled={
+                                !!vendorInviteParam &&
+                                (inviteLoading ||
+                                  inviteExpired ||
+                                  inviteConsumed)
+                              }
+                              autoComplete="new-password"
                             />
-                          </div>
+                            <Form.Control.Feedback type="invalid">
+                              {signupErrors.passwordHash}
+                            </Form.Control.Feedback>
+                          </InputGroup>
                         </Form.Group>
 
                         <Form.Group className="mb-4">
                           <Form.Label>Confirm Password</Form.Label>
-                          <div className="position-relative">
-                            <FaLock
-                              className="position-absolute"
-                              style={{
-                                left: "15px",
-                                top: "50%",
-                                transform: "translateY(-50%)",
-                                color: "#6c757d",
-                              }}
-                            />
+                          <InputGroup
+                            hasValidation
+                            className="auth-input-icon-group rounded-3 shadow-sm"
+                          >
+                            <InputGroup.Text className="bg-light text-secondary border-end-0">
+                              <FaLock aria-hidden />
+                            </InputGroup.Text>
                             <Form.Control
                               type="password"
                               placeholder="Confirm your password"
                               value={signupData.confirmPassword}
-                              onChange={(e) =>
+                              onChange={(e) => {
                                 setSignupData({
                                   ...signupData,
                                   confirmPassword: e.target.value,
-                                })
-                              }
-                              style={{
-                                paddingLeft: "45px",
-                                borderRadius: "10px",
+                                });
                               }}
-                              required
+                              isInvalid={!!signupErrors.confirmPassword}
+                              className="border-start-0"
+                              disabled={
+                                !!vendorInviteParam &&
+                                (inviteLoading ||
+                                  inviteExpired ||
+                                  inviteConsumed)
+                              }
+                              autoComplete="new-password"
                             />
-                          </div>
+                            <Form.Control.Feedback type="invalid">
+                              {signupErrors.confirmPassword}
+                            </Form.Control.Feedback>
+                          </InputGroup>
                         </Form.Group>
 
                         <Button
-                          type="submit"
+                          type="button"
                           variant="primary"
                           size="lg"
                           className="w-100 mb-3"
                           style={{ borderRadius: "10px" }}
+                          disabled={
+                            signupInviteBlocked ||
+                            !signupValidation.valid ||
+                            signupSubmitting
+                          }
+                          onClick={startSignupVerification}
                         >
-                          Sign Up as{" "}
-                          {_userType === "client" ? "Client" : "Vendor"}
+                          {signupSubmitting ? (
+                            <>
+                              <Spinner size="sm" className="me-2" />
+                              Creating account…
+                            </>
+                          ) : (
+                            <>
+                              Verify email &amp; phone, then sign up as{" "}
+                              {_userType === "client" ? "Client" : "Vendor"}
+                            </>
+                          )}
                         </Button>
                       </Form>
                     </Tab>
                   </Tabs>
-
-                  {/* <div className="text-center">
-                    <small className="text-muted">
-                      By continuing, you agree to our Terms of Service and Privacy Policy
-                    </small>
-                  </div> */}
                 </Card.Body>
               </Card>
             </Col>
           </Row>
         </motion.div>
       </Container>
+
+      {signupOtpStep === "email" && (
+        <OtpVerificationModal
+          key={`signup-email-${signupData.email}`}
+          show
+          channel="email"
+          value={signupData.email.trim()}
+          onHide={() => setSignupOtpStep(null)}
+          onVerified={() => setSignupOtpStep("sms")}
+          title="Verify email for sign-up"
+        />
+      )}
+      {signupOtpStep === "sms" && (
+        <OtpVerificationModal
+          key={`signup-sms-${signupData.phone}`}
+          show
+          channel="sms"
+          value={toIndiaE164(signupData.phone)}
+          onHide={() => setSignupOtpStep(null)}
+          onVerified={() => {
+            void runSignupAfterOtp();
+          }}
+          title="Verify phone for sign-up"
+        />
+      )}
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -11,6 +11,7 @@ import {
   Tab,
   Tabs,
   Form,
+  Table,
 } from "react-bootstrap";
 import { motion } from 'framer-motion';
 import {
@@ -35,6 +36,24 @@ import {
   markNotificationRead,
 } from "../services/api";
 import ProfileImageUpload from "../services/ImageUpload";
+import { validateClientProfile } from "../utils/formValidation";
+import OtpVerificationModal from "../components/OtpVerificationModal";
+import EventsCalendar from "../components/EventsCalendar";
+
+function displayClientEventTitle(ev) {
+  const t = ev?.title || "";
+  const parts = t.split("-");
+  return parts.length > 1 ? parts[1].trim() : t.trim() || "Event";
+}
+
+function clientEventStatusBadgeBg(status) {
+  if (!status) return "secondary";
+  const s = String(status);
+  if (s.toLowerCase() === "completed") return "success";
+  if (s.toLowerCase().includes("draft")) return "warning";
+  if (s.toLowerCase().includes("planning")) return "info";
+  return "primary";
+}
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -43,6 +62,14 @@ const Dashboard = () => {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profileForm, setProfileForm] = useState(null);
   const [showAlert, setShowAlert] = useState(false);
+
+  const clientProfileValidation = useMemo(() => {
+    if (!profileForm) return { valid: false, errors: {} };
+    return validateClientProfile(profileForm);
+  }, [profileForm]);
+
+  const profileErrors = clientProfileValidation.errors;
+  const profileValid = clientProfileValidation.valid;
   const [alertMessage, setAlertMessage] = useState("");
   
   // Additional dashboard data
@@ -67,6 +94,8 @@ const Dashboard = () => {
   const [activeEvents, setActiveEvents] = useState([]);
   const [compEvents, setCompEvents] = useState([]);
   const [showImageUploader, setShowImageUploader] = useState(false);
+  const [emailOtpOpen, setEmailOtpOpen] = useState(false);
+  const [pendingEmailForOtp, setPendingEmailForOtp] = useState("");
 
 
   const handleLogout = () => {
@@ -83,18 +112,21 @@ const Dashboard = () => {
       phone: form.phone,
       profileImageUrl: form.profileImageUrl,
     };
-    try{
-    const res = await updateClientProfile(userId, payload);
-    } catch(err){
+    const em = String(form.email ?? "").trim();
+    if (em) payload.email = em;
+    try {
+      await updateClientProfile(userId, payload);
+    } catch (err) {
       console.error("Profile update failed", err);
       setAlertMessage("Failed to update profile. Please try again.");
       setShowAlert(true);
-      return;
+      throw err;
     }
     setUserProfile((prev) => ({
       ...prev,
       ...payload,
       fullName: `${payload.firstName} ${payload.lastName}`,
+      email: payload.email ?? prev?.email,
     }));
   };
 
@@ -130,10 +162,13 @@ const Dashboard = () => {
     const loadEventDetails = async () => {
       try {
         const res = await getClientEventDetails(userId);
-        setEventDetails(res.data);
-        setTotalEvents(res.data.length);
-        setActiveEvents(res.data.filter(e => e.status !== 'completed'));
-        setCompEvents(res.data.filter(e => e.status === 'completed'));
+        const list = Array.isArray(res.data) ? res.data : [];
+        setEventDetails(list);
+        setTotalEvents(list.length);
+        const isCompleted = (s) =>
+          String(s || "").toLowerCase() === "completed";
+        setActiveEvents(list.filter((e) => !isCompleted(e.status)));
+        setCompEvents(list.filter((e) => isCompleted(e.status)));
       } catch (err) {
         console.error("Failed to load event details", err);
       }
@@ -430,17 +465,7 @@ const Dashboard = () => {
                       </div>
                     </div>
                     <div className="d-flex align-items-center gap-2">
-                      <Badge
-                        bg={
-                          ev.status === "Completed"
-                            ? "success"
-                            : ev.status.includes("draft")
-                            ? "warning"
-                            : ev.status.includes("planning")
-                            ? "info"
-                            : "primary"
-                        }
-                      >
+                      <Badge bg={clientEventStatusBadgeBg(ev.status)}>
                         {ev.status}
                       </Badge>
                       <Button
@@ -469,41 +494,130 @@ const Dashboard = () => {
             </>
           }
         >
-          <Card className="card-modern p-3">
-            <h5 className="mb-3">Completed Events</h5>
-            <div className="table-responsive">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Vendor</th>
-                    <th>Event</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {compEvents.map((ev) => {
-                    const relatedVendors = bookings
-                      .filter((b) => b.eventId === ev.id)
-                      .map((b) => b.vendorName);
-                    const vendorNames =
-                      relatedVendors.length > 0
-                        ? relatedVendors.join(", ")
-                        : "—";
-                    return (
-                      <tr key={ev.id}>
-                        <td>{ev.date}</td>
-                        <td>{vendorNames}</td>
-                        <td>{ev.name}</td>
+          <Row className="mb-4">
+            <Col lg={12}>
+              <EventsCalendar
+                events={eventDetails}
+                onOpenEvent={(eventId) =>
+                  navigate(`/event-details?eventId=${eventId}`)
+                }
+              />
+            </Col>
+          </Row>
+
+          <Card className="card-modern border-0 shadow-sm mb-4">
+            <Card.Header className="bg-transparent border-0">
+              <h5 className="mb-0 text-warning">
+                Upcoming &amp; active ({activeEvents.length})
+              </h5>
+            </Card.Header>
+            <Card.Body>
+              {activeEvents.length === 0 ? (
+                <p className="text-muted mb-0">
+                  No upcoming events. Plan one from Search &amp; Book.
+                </p>
+              ) : (
+                activeEvents.map((ev) => (
+                  <div
+                    key={ev.eventId}
+                    className="d-flex flex-wrap justify-content-between align-items-center border-bottom py-3 gap-2"
+                  >
+                    <div>
+                      <strong>{displayClientEventTitle(ev)}</strong>
+                      <br />
+                      <small className="text-muted">
+                        <FaCalendarAlt className="me-1" />
+                        {ev.eventDate || "—"}
+                        {ev.venueAddress ? (
+                          <>
+                            {" "}
+                            • <FaMapMarkerAlt className="me-1" />
+                            {ev.venueAddress}
+                          </>
+                        ) : null}
+                      </small>
+                    </div>
+                    <div className="d-flex align-items-center gap-2">
+                      <Badge bg={clientEventStatusBadgeBg(ev.status)}>
+                        {ev.status || "—"}
+                      </Badge>
+                      <Button
+                        size="sm"
+                        variant="outline-primary"
+                        onClick={() =>
+                          navigate(`/event-details?eventId=${ev.eventId}`)
+                        }
+                      >
+                        <FaEye />
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </Card.Body>
+          </Card>
+
+          <Card className="card-modern border-0 shadow-sm">
+            <Card.Header className="bg-transparent border-0">
+              <h5 className="mb-0 text-success">
+                <FaCheckCircle className="me-2" />
+                Completed events ({compEvents.length})
+              </h5>
+            </Card.Header>
+            <Card.Body className="p-0">
+              {compEvents.length === 0 ? (
+                <p className="text-muted mb-0 p-3">
+                  No completed events yet.
+                </p>
+              ) : (
+                <Table responsive hover className="mb-0">
+                  <thead className="bg-light">
+                    <tr>
+                      <th>Event</th>
+                      <th>Date</th>
+                      <th>Guests</th>
+                      <th>Venue</th>
+                      <th>Status</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {compEvents.map((ev) => (
+                      <tr key={ev.eventId}>
+                        <td>{displayClientEventTitle(ev)}</td>
+                        <td>{ev.eventDate || "—"}</td>
                         <td>
-                          <Badge bg="success">Completed</Badge>
+                          {ev.guestCount != null && ev.guestCount !== ""
+                            ? ev.guestCount
+                            : "—"}
+                        </td>
+                        <td className="text-muted small">
+                          {ev.venueAddress || "—"}
+                        </td>
+                        <td>
+                          <Badge bg="success">
+                            {ev.status || "Completed"}
+                          </Badge>
+                        </td>
+                        <td>
+                          <Button
+                            size="sm"
+                            variant="outline-primary"
+                            onClick={() =>
+                              navigate(
+                                `/event-details?eventId=${ev.eventId}`
+                              )
+                            }
+                          >
+                            <FaEye />
+                          </Button>
                         </td>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                    ))}
+                  </tbody>
+                </Table>
+              )}
+            </Card.Body>
           </Card>
         </Tab>
 
@@ -735,13 +849,17 @@ const Dashboard = () => {
                     <Form.Control
                       type="text"
                       value={profileForm.firstName}
-                      onChange={(e) =>
+                      onChange={(e) => {
                         setProfileForm({
                           ...profileForm,
                           firstName: e.target.value,
-                        })
-                      }
+                        });
+                      }}
+                      isInvalid={!!profileErrors.firstName}
                     />
+                    <Form.Control.Feedback type="invalid">
+                      {profileErrors.firstName}
+                    </Form.Control.Feedback>
                   </Form.Group>
                 </Col>
 
@@ -751,13 +869,17 @@ const Dashboard = () => {
                     <Form.Control
                       type="text"
                       value={profileForm.lastName}
-                      onChange={(e) =>
+                      onChange={(e) => {
                         setProfileForm({
                           ...profileForm,
                           lastName: e.target.value,
-                        })
-                      }
+                        });
+                      }}
+                      isInvalid={!!profileErrors.lastName}
                     />
+                    <Form.Control.Feedback type="invalid">
+                      {profileErrors.lastName}
+                    </Form.Control.Feedback>
                   </Form.Group>
                 </Col>
               </Row>
@@ -769,8 +891,20 @@ const Dashboard = () => {
                     <Form.Control
                       type="email"
                       value={profileForm.email}
-                      disabled
+                      onChange={(e) => {
+                        setProfileForm({
+                          ...profileForm,
+                          email: e.target.value,
+                        });
+                      }}
+                      isInvalid={!!profileErrors.email}
                     />
+                    <Form.Control.Feedback type="invalid">
+                      {profileErrors.email}
+                    </Form.Control.Feedback>
+                    <Form.Text className="text-muted">
+                      Changing your email requires a verification code sent to the new address.
+                    </Form.Text>
                   </Form.Group>
                 </Col>
 
@@ -780,13 +914,14 @@ const Dashboard = () => {
                     <Form.Control
                       type="tel"
                       value={profileForm.phone}
-                      onChange={(e) =>
-                        setProfileForm({
-                          ...profileForm,
-                          phone: e.target.value,
-                        })
-                      }
+                      readOnly
+                      className="bg-light"
+                      tabIndex={-1}
+                      aria-readonly="true"
                     />
+                    <Form.Text className="text-muted">
+                      Phone cannot be changed here. Contact support if it is wrong.
+                    </Form.Text>
                   </Form.Group>
                 </Col>
               </Row>
@@ -833,7 +968,17 @@ const Dashboard = () => {
 
           <Button
             variant="primary"
+            disabled={!profileValid}
             onClick={async () => {
+              if (!profileForm) return;
+              if (!validateClientProfile(profileForm).valid) return;
+              const clean = String(profileForm.email || "").trim();
+              const orig = String(userProfile?.email || "").trim();
+              if (clean !== orig) {
+                setPendingEmailForOtp(clean);
+                setEmailOtpOpen(true);
+                return;
+              }
               try {
                 await handleProfileUpdate(profileForm);
                 setShowProfileModal(false);
@@ -851,6 +996,34 @@ const Dashboard = () => {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      <OtpVerificationModal
+        show={emailOtpOpen}
+        onHide={() => setEmailOtpOpen(false)}
+        channel="email"
+        value={pendingEmailForOtp}
+        title="Verify your new email"
+        onVerified={async () => {
+          if (!profileForm || !pendingEmailForOtp) return;
+          setEmailOtpOpen(false);
+          try {
+            const next = {
+              ...profileForm,
+              email: pendingEmailForOtp.trim(),
+            };
+            await handleProfileUpdate(next);
+            setProfileForm(next);
+            setShowProfileModal(false);
+            setAlertMessage("Profile updated successfully!");
+            setShowAlert(true);
+            setTimeout(() => setShowAlert(false), 3000);
+          } catch (err) {
+            console.error(err);
+            setAlertMessage("Failed to update profile");
+            setShowAlert(true);
+          }
+        }}
+      />
 
       <style jsx>{`
         .gradient-text {

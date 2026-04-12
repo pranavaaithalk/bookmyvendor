@@ -8,6 +8,10 @@ export const UserLogin = (loginData) => {
 export const UserRegister = (registerData) =>
   api.post(`/users/signup`, registerData);
 
+/** Public invite validation (no auth). Token is 32-char hex from SMS deep link. */
+export const getPublicVendorInvite = (token) =>
+  api.get(`/public/vendor-invite/${encodeURIComponent(token)}`);
+
 export const fetchVendorsByService = (location, service, budget) =>
   api.get(`/vendors`, { params: { location, service, budget } });
 

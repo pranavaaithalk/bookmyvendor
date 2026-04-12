@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Container,
   Row,
@@ -11,6 +11,12 @@ import {
 } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import { VendorOnBoarding, fetchAllServicesAvailable } from "../services/api"; // added fetchAllServicesAvailable
+import {
+  VENDOR_INVITE_TOKEN_KEY,
+  VENDOR_INVITE_DATA_KEY,
+  PENDING_VENDOR_SIGNUP_EMAIL_KEY,
+} from "../constants/vendorInviteStorage";
+import { validateVendorOnboardingForm } from "../utils/formValidation";
 
 const VendorOnboarding = () => {
   const navigate = useNavigate();
@@ -46,6 +52,47 @@ const VendorOnboarding = () => {
   const [selectedState, setSelectedState] = useState("");
   const [selectedCity, setSelectedCity] = useState("");
   const [location, setLocation] = useState("");
+  const [inviteInfo, setInviteInfo] = useState(null);
+  const [vendorInviteToken, setVendorInviteToken] = useState(null);
+  const [invitedServiceId, setInvitedServiceId] = useState(null);
+
+  useEffect(() => {
+    const token = sessionStorage.getItem(VENDOR_INVITE_TOKEN_KEY);
+    const raw = sessionStorage.getItem(VENDOR_INVITE_DATA_KEY);
+    setVendorInviteToken(token || null);
+    if (token && raw) {
+      try {
+        const data = JSON.parse(raw);
+        setInviteInfo(data);
+        if (data.serviceId != null && data.serviceId !== "") {
+          setInvitedServiceId(String(data.serviceId));
+        }
+        setForm((prev) => ({
+          ...prev,
+          businessName:
+            data.suggestedBusinessName ||
+            data.vendorDisplayName ||
+            prev.businessName,
+          businessDescription: data.serviceName
+            ? `Offers ${data.serviceName} (from your invite).`
+            : prev.businessDescription,
+          businessAddress:
+            data.suggestedBusinessAddress ||
+            data.venueAddress ||
+            prev.businessAddress,
+          businessPhone:
+            data.suggestedBusinessPhone ||
+            data.contactPhone ||
+            prev.businessPhone,
+          businessEmail:
+            sessionStorage.getItem(PENDING_VENDOR_SIGNUP_EMAIL_KEY) ||
+            prev.businessEmail,
+        }));
+      } catch (e) {
+        console.warn("Could not parse vendor invite data", e);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -118,20 +165,22 @@ const VendorOnboarding = () => {
     return id ? id : null;
   };
 
+  const onboardingValidation = useMemo(
+    () => validateVendorOnboardingForm(form, selectedState, selectedCity),
+    [form, selectedState, selectedCity]
+  );
+  const oe = onboardingValidation.errors;
+  const onboardingValid = onboardingValidation.valid;
+
   const validate = () => {
-    if (
-      !form.businessName ||
-      !form.businessAddress ||
-      !form.state ||
-      !form.pincode
-    ) {
-      setError(
-        "Please fill required fields: Company Name, Address, City, State and Pincode."
-      );
-      return false;
-    }
-    if (!/^\d{6}$/.test(form.pincode)) {
-      setError("Please enter a valid 6-digit pincode.");
+    const { valid, errors } = validateVendorOnboardingForm(
+      form,
+      selectedState,
+      selectedCity
+    );
+    if (!valid) {
+      const msg = Object.values(errors)[0];
+      setError(msg || "Please complete all required fields.");
       return false;
     }
     setError(null);
@@ -139,14 +188,33 @@ const VendorOnboarding = () => {
   };
 
   const toggleServiceSelection = (serviceId) => {
+    const sid = String(serviceId);
+    if (invitedServiceId && sid === invitedServiceId) {
+      return;
+    }
     setForm((prev) => {
-      const exists = prev.servicesProvided.includes(serviceId);
+      const normalized = prev.servicesProvided.map((id) => String(id));
+      const exists = normalized.includes(sid);
       const nextArr = exists
-        ? prev.servicesProvided.filter((id) => id !== serviceId)
+        ? prev.servicesProvided.filter((id) => String(id) !== sid)
         : [...prev.servicesProvided, serviceId];
       return { ...prev, servicesProvided: nextArr };
     });
   };
+
+  useEffect(() => {
+    if (!invitedServiceId || !services.length) return;
+    setForm((prev) => {
+      const has = prev.servicesProvided.some(
+        (id) => String(id) === String(invitedServiceId)
+      );
+      if (has) return prev;
+      return {
+        ...prev,
+        servicesProvided: [...prev.servicesProvided, invitedServiceId],
+      };
+    });
+  }, [invitedServiceId, services]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -160,6 +228,15 @@ const VendorOnboarding = () => {
 
     // Build map expected by backend. Backend currently expects string values in map.
     // Note: servicesProvided is sent as JSON string. Backend should parse it (or accept comma list).
+    const serviceIds = [
+      ...new Set(
+        [...form.servicesProvided.map((id) => String(id))].filter(Boolean)
+      ),
+    ];
+    if (invitedServiceId && !serviceIds.includes(String(invitedServiceId))) {
+      serviceIds.push(String(invitedServiceId));
+    }
+
     const payload = {
       userId: String(userId),
       businessName: form.businessName,
@@ -179,20 +256,34 @@ const VendorOnboarding = () => {
       isApproved: String(form.isApproved),
       rating: String(form.rating ?? 0.0),
       totalReviews: String(form.totalReviews ?? 0),
-      // key addition: servicesProvided as JSON string of IDs
-      servicesProvided: JSON.stringify(form.servicesProvided),
+      servicesProvided: JSON.stringify(
+        serviceIds.map((id) => {
+          const n = Number(id);
+          return Number.isNaN(n) ? id : n;
+        })
+      ),
     };
+
+    if (vendorInviteToken) {
+      payload.vendorInviteToken = vendorInviteToken;
+    }
 
     setLoading(true);
     setError(null);
+
+    const hadInvite = Boolean(vendorInviteToken);
 
     try {
       const resp = await VendorOnBoarding(payload);
       sessionStorage.setItem("userId", resp?.data?.userId);
       sessionStorage.setItem("vendorId", resp?.data?.vendorId);
+      sessionStorage.removeItem(VENDOR_INVITE_TOKEN_KEY);
+      sessionStorage.removeItem(VENDOR_INVITE_DATA_KEY);
+      sessionStorage.removeItem(PENDING_VENDOR_SIGNUP_EMAIL_KEY);
       console.log("Vendor onboarding response:", resp?.data);
-      // navigate to vendor dashboard or profile page
-      navigate("/vendor-dashboard");
+      navigate(
+        hadInvite ? "/vendor-dashboard?tab=bookings" : "/vendor-dashboard"
+      );
     } catch (err) {
       console.error("Failed to create vendor profile", err);
       const msg =
@@ -242,7 +333,25 @@ const VendorOnboarding = () => {
                   </Alert>
                 )}
 
-                <Form onSubmit={handleSubmit}>
+                {inviteInfo && (
+                  <Alert variant="info" className="small">
+                    <strong>Invite</strong>
+                    {inviteInfo.eventTitle ? (
+                      <> — {inviteInfo.eventTitle}</>
+                    ) : null}
+                    {inviteInfo.venueAddress ? (
+                      <div className="text-muted mt-1">{inviteInfo.venueAddress}</div>
+                    ) : null}
+                    {inviteInfo.serviceName ? (
+                      <div className="mt-1">
+                        Requested service: <strong>{inviteInfo.serviceName}</strong>{" "}
+                        (included in your services below)
+                      </div>
+                    ) : null}
+                  </Alert>
+                )}
+
+                <Form onSubmit={handleSubmit} noValidate>
                   <Form.Group className="mb-3">
                     <Form.Label>Company Name</Form.Label>
                     <Form.Control
@@ -253,8 +362,11 @@ const VendorOnboarding = () => {
                         setForm({ ...form, businessName: e.target.value })
                       }
                       style={{ borderRadius: "10px" }}
-                      required
+                      isInvalid={!!oe.businessName}
                     />
+                    <Form.Control.Feedback type="invalid">
+                      {oe.businessName}
+                    </Form.Control.Feedback>
                   </Form.Group>
 
                   <Form.Group className="mb-3">
@@ -286,26 +398,39 @@ const VendorOnboarding = () => {
                             No services available
                           </div>
                         )}
-                        {services.map((s) => (
-                          <Form.Check
-                            key={s.serviceId}
-                            type="checkbox"
-                            id={`svc-${s.serviceId}`}
-                            label={s.name}
-                            checked={
-                              form.servicesProvided.includes(
-                                String(s.serviceId)
-                              ) || form.servicesProvided.includes(s.serviceId)
-                            }
-                            onChange={() => toggleServiceSelection(s.serviceId)}
-                            className="mb-1"
-                          />
-                        ))}
+                        {services.map((s) => {
+                          const isInvited =
+                            invitedServiceId &&
+                            String(s.serviceId) === String(invitedServiceId);
+                          return (
+                            <Form.Check
+                              key={s.serviceId}
+                              type="checkbox"
+                              id={`svc-${s.serviceId}`}
+                              label={
+                                isInvited ? `${s.name} (from invite)` : s.name
+                              }
+                              checked={
+                                form.servicesProvided.includes(
+                                  String(s.serviceId)
+                                ) || form.servicesProvided.includes(s.serviceId)
+                              }
+                              onChange={() => toggleServiceSelection(s.serviceId)}
+                              className="mb-1"
+                              disabled={!!isInvited}
+                            />
+                          );
+                        })}
                       </div>
                     )}
                     <Form.Text className="text-muted">
                       Select all services you provide.
                     </Form.Text>
+                    {oe.servicesProvided && (
+                      <div className="invalid-feedback d-block" role="alert">
+                        {oe.servicesProvided}
+                      </div>
+                    )}
                   </Form.Group>
 
                   <Form.Group className="mb-3">
@@ -319,14 +444,17 @@ const VendorOnboarding = () => {
                         setForm({ ...form, businessAddress: e.target.value })
                       }
                       style={{ borderRadius: "10px" }}
-                      required
+                      isInvalid={!!oe.businessAddress}
                     />
+                    <Form.Control.Feedback type="invalid">
+                      {oe.businessAddress}
+                    </Form.Control.Feedback>
                   </Form.Group>
 
                   <Form.Group className="mb-3">
                     <Row>
                       <Col md={6} className="mb-3 mb-md-0">
-                        <Form.Label>City</Form.Label>
+                        <Form.Label>State</Form.Label>
                         <Form.Select
                           className="mb-2"
                           value={selectedState}
@@ -337,6 +465,7 @@ const VendorOnboarding = () => {
                             setCities([]);
                             fetchCities(state);
                           }}
+                          isInvalid={!!oe.state}
                         >
                           <option value="">Select State</option>
                           {states.map((state) => (
@@ -345,14 +474,18 @@ const VendorOnboarding = () => {
                             </option>
                           ))}
                         </Form.Select>
+                        <Form.Control.Feedback type="invalid">
+                          {oe.state}
+                        </Form.Control.Feedback>
                       </Col>
                       <Col md={6}>
-                        <Form.Label>State</Form.Label>
+                        <Form.Label>City</Form.Label>
                         <Form.Select
                           className="mb-2"
                           value={selectedCity}
                           onChange={(e) => setSelectedCity(e.target.value)}
                           disabled={!selectedState}
+                          isInvalid={!!oe.city}
                         >
                           <option value="">Select City</option>
                           {cities.map((city) => (
@@ -361,6 +494,9 @@ const VendorOnboarding = () => {
                             </option>
                           ))}
                         </Form.Select>
+                        <Form.Control.Feedback type="invalid">
+                          {oe.city}
+                        </Form.Control.Feedback>
                       </Col>
                     </Row>
                   </Form.Group>
@@ -379,8 +515,11 @@ const VendorOnboarding = () => {
                             setForm({ ...form, pincode: e.target.value })
                           }
                           style={{ borderRadius: "10px" }}
-                          required
+                          isInvalid={!!oe.pincode}
                         />
+                        <Form.Control.Feedback type="invalid">
+                          {oe.pincode}
+                        </Form.Control.Feedback>
                       </Col>
                       <Col md={6}>
                         <Form.Label>Phone</Form.Label>
@@ -392,7 +531,11 @@ const VendorOnboarding = () => {
                             setForm({ ...form, businessPhone: e.target.value })
                           }
                           style={{ borderRadius: "10px" }}
+                          isInvalid={!!oe.businessPhone}
                         />
+                        <Form.Control.Feedback type="invalid">
+                          {oe.businessPhone}
+                        </Form.Control.Feedback>
                       </Col>
                     </Row>
                   </Form.Group>
@@ -407,7 +550,11 @@ const VendorOnboarding = () => {
                         setForm({ ...form, businessEmail: e.target.value })
                       }
                       style={{ borderRadius: "10px" }}
+                      isInvalid={!!oe.businessEmail}
                     />
+                    <Form.Control.Feedback type="invalid">
+                      {oe.businessEmail}
+                    </Form.Control.Feedback>
                   </Form.Group>
 
                   <Form.Group className="mb-3">
@@ -461,7 +608,7 @@ const VendorOnboarding = () => {
                     size="lg"
                     className="w-100"
                     style={{ borderRadius: "10px" }}
-                    disabled={loading}
+                    disabled={loading || !onboardingValid}
                   >
                     {loading ? (
                       <>

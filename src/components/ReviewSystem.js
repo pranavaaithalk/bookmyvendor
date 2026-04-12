@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, Button, Form, Row, Col, Modal, Badge, ProgressBar } from 'react-bootstrap';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaStar, FaStarHalfAlt, FaRegStar, FaThumbsUp, FaReply, FaFlag, FaUser, FaCalendarAlt, FaEdit, FaTrash } from 'react-icons/fa';
@@ -16,6 +16,17 @@ const ReviewSystem = ({ vendorId, reviews = [], onAddReview, onUpdateReview, onD
   });
   const [filterRating, setFilterRating] = useState(0);
   const [sortBy, setSortBy] = useState('newest');
+
+  const reviewFieldErrors = useMemo(() => {
+    const errors = {};
+    if (newReview.rating < 1) {
+      errors.rating = 'Please select a rating from 1 to 5 stars.';
+    }
+    if (!String(newReview.comment || '').trim()) {
+      errors.comment = 'Please write your review.';
+    }
+    return errors;
+  }, [newReview.rating, newReview.comment]);
 
   // Mock user data - in real app, this would come from auth context
   const currentUser = {
@@ -364,6 +375,11 @@ const ReviewSystem = ({ vendorId, reviews = [], onAddReview, onUpdateReview, onD
                       setNewReview(prev => ({ ...prev, rating }))
                     )}
                   </div>
+                  {reviewFieldErrors.rating && (
+                    <div className="text-danger small mt-1" role="alert">
+                      {reviewFieldErrors.rating}
+                    </div>
+                  )}
                 </Form.Group>
               </Col>
               <Col md={6} className="mb-3">
@@ -424,8 +440,11 @@ const ReviewSystem = ({ vendorId, reviews = [], onAddReview, onUpdateReview, onD
                 placeholder="Share your experience with this vendor..."
                 value={newReview.comment}
                 onChange={(e) => setNewReview(prev => ({ ...prev, comment: e.target.value }))}
-                required
+                isInvalid={!!reviewFieldErrors.comment}
               />
+              <Form.Control.Feedback type="invalid">
+                {reviewFieldErrors.comment}
+              </Form.Control.Feedback>
             </Form.Group>
           </Form>
         </Modal.Body>
@@ -436,7 +455,9 @@ const ReviewSystem = ({ vendorId, reviews = [], onAddReview, onUpdateReview, onD
           <Button 
             variant="primary" 
             onClick={handleSubmitReview}
-            disabled={newReview.rating === 0 || !newReview.comment.trim()}
+            disabled={
+              !!reviewFieldErrors.rating || !!reviewFieldErrors.comment
+            }
           >
             {editingReview ? 'Update Review' : 'Submit Review'}
           </Button>

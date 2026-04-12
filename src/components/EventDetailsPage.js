@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import {
   Container,
@@ -80,6 +80,18 @@ const EventDetailsPage = () => {
 
     load();
   }, [eventId]);
+
+  const reviewsSubmitValid = useMemo(() => {
+    const list = Object.values(reviews);
+    if (list.length === 0) return false;
+    return list.every(
+      (r) =>
+        Number(r.rating) >= 1 &&
+        String(r.comment || "")
+          .trim()
+          .length > 0
+    );
+  }, [reviews]);
 
   if (loading) {
     return (
@@ -375,6 +387,10 @@ const EventDetailsPage = () => {
                             `vendor-${sr.vendorRequest.vendorRequestId}` === key
                         )?.vendorRequest?.vendorName || "Vendor";
 
+                  const ratingMissing =
+                    !Number(review.rating) || Number(review.rating) < 1;
+                  const commentMissing = !String(review.comment || "").trim();
+
                   return (
                     <>
                       <h6 className="mb-2">
@@ -392,9 +408,16 @@ const EventDetailsPage = () => {
                           }))
                         }
                       />
+                      {ratingMissing && (
+                        <div className="text-danger small mt-1" role="alert">
+                          Select a star rating (1–5).
+                        </div>
+                      )}
 
                       <textarea
-                        className="form-control mt-2"
+                        className={`form-control mt-2${
+                          commentMissing ? " is-invalid" : ""
+                        }`}
                         rows={3}
                         placeholder="Write your review..."
                         value={review.comment}
@@ -404,7 +427,13 @@ const EventDetailsPage = () => {
                             [key]: { ...prev[key], comment: e.target.value },
                           }))
                         }
+                        aria-invalid={commentMissing}
                       />
+                      {commentMissing && (
+                        <div className="invalid-feedback d-block">
+                          Enter a few words about your experience.
+                        </div>
+                      )}
                     </>
                   );
                 })()}
@@ -423,7 +452,9 @@ const EventDetailsPage = () => {
 
           <Button
             variant="success"
+            disabled={!reviewsSubmitValid}
             onClick={async () => {
+              if (!reviewsSubmitValid) return;
               try {
                 const userId = sessionStorage.getItem("userId");
                 const payload = {

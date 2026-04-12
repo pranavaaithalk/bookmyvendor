@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Modal,
@@ -16,14 +16,15 @@ import {
   FaUsers,
   FaCheck,
 } from "react-icons/fa";
-import { raiseBookingRequest, createEvent } from "../services/api";
+import { raiseBookingRequest, createEvent, getClientProfile } from "../services/api";
+import { validateBookingStep1, validateBookingStep2 } from "../utils/formValidation";
 
-// NOTE: This modal expects props:
-// show, onHide,
-// selectedVendors: { [serviceId]: vendorObj }
-// selectedServices: { [serviceId]: boolean }
-// budgets: { [serviceId]: number }
-// eventDate, guestCount, location (prefill values from parent)
+function buildClientFullName(profile) {
+  if (!profile) return "";
+  const combined = `${profile.firstName || ""} ${profile.lastName || ""}`.trim();
+  if (profile.fullName?.trim()) return profile.fullName.trim();
+  return combined;
+}
 
 const BookingModal = ({
   show,
@@ -51,6 +52,7 @@ const BookingModal = ({
   });
   const [isProcessing, setIsProcessing] = useState(false);
   const [bookingComplete, setBookingComplete] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -65,91 +67,136 @@ const BookingModal = ({
     }
   }, [show, eventDate, guestCount, location, eventType]);
 
+  useEffect(() => {
+    if (!show) return;
+    const userId = sessionStorage.getItem("userId");
+    if (!userId) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await getClientProfile(userId);
+        const p = res?.data;
+        if (cancelled || !p) return;
+        setBookingData((prev) => ({
+          ...prev,
+          contactName: buildClientFullName(p),
+          contactPhone: p.phone || "",
+          contactEmail: p.email || "",
+          userId,
+        }));
+      } catch (err) {
+        console.error("Failed to load client profile for booking", err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [show]);
+
+  const step1Valid = useMemo(
+    () => validateBookingStep1(bookingData).valid,
+    [bookingData]
+  );
+  const step2Valid = useMemo(
+    () => validateBookingStep2(bookingData).valid,
+    [bookingData]
+  );
+
   const totalAmount = Object.entries(selectedServices)
-    .filter(([key, selected]) => selected)
-    .reduce((total, [key]) => total + parseInt(budgets[key] || 0), 0);
+    .filter(([, selected]) => selected)
+    .reduce((total, [key]) => total + parseInt(budgets[key] || 0, 10), 0);
 
   const handleInputChange = (field, value) => {
+    setFieldErrors((prev) => ({ ...prev, [field]: undefined }));
     setBookingData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleNextStep = () => {
+    const { valid, errors } = validateBookingStep1(bookingData);
+    if (!valid) {
+      setFieldErrors(errors);
+      return;
+    }
+    setFieldErrors({});
     if (currentStep < 2) setCurrentStep((s) => s + 1);
   };
+
   const handlePrevStep = () => {
+    setFieldErrors({});
     if (currentStep > 1) setCurrentStep((s) => s - 1);
   };
 
-  const raiseRequest = async(data,eventId) => {
-      if (!data || typeof data !== "object") return null;
-      const budgets = data.budgets || {};
-      const selectedServices = data.selectedServices || {};
-      const selectedVendors = data.selectedVendors || {};
-      const services = [];
+  const raiseRequest = async (data, eventId) => {
+    if (!data || typeof data !== "object") return null;
+    const bud = data.budgets || {};
+    const selSvc = data.selectedServices || {};
+    const selVen = data.selectedVendors || {};
+    const services = [];
 
-      Object.keys(selectedServices).forEach((rawKey) => {
-        const serviceIdStr = String(rawKey);
-        const isSelected = selectedServices[serviceIdStr];
+    Object.keys(selSvc).forEach((rawKey) => {
+      const serviceIdStr = String(rawKey);
+      if (!selSvc[serviceIdStr]) return;
 
-        if (!isSelected) return; 
+      const vendorObj =
+        selVen[serviceIdStr] || selVen[Number(serviceIdStr)];
 
-        const vendorObj =
-          selectedVendors[serviceIdStr] ||
-          selectedVendors[Number(serviceIdStr)];
+      if (!vendorObj) return;
 
-        if (!vendorObj) return; 
+      const vendorId = vendorObj.vendorId ?? null;
 
-        const vendorId =
-          vendorObj.vendorId ??
-          null;
-
-        let rawBudget = budgets[serviceIdStr];
-        if (rawBudget === undefined) {
-          rawBudget = budgets[Number(serviceIdStr)];
-        }
-
-        const budget =
-          rawBudget == null
-            ? 0
-            : Number(String(rawBudget).replace(/[^0-9.-]+/g, "")) || 0;
-
-        services.push({
-          serviceId: Number(serviceIdStr),
-          vendorId: vendorId != null ? Number(vendorId) : null,
-          budget,
-        });
-      });
-
-      const payload = { 
-        services,
-        eventId,
-      };
-      try{
-        await raiseBookingRequest(payload);
-      }catch(err){
-        console.error("Error in raiseBookingRequest: ", err);
+      let rawBudget = bud[serviceIdStr];
+      if (rawBudget === undefined) {
+        rawBudget = bud[Number(serviceIdStr)];
       }
+
+      const budget =
+        rawBudget == null
+          ? 0
+          : Number(String(rawBudget).replace(/[^0-9.-]+/g, "")) || 0;
+
+      services.push({
+        serviceId: Number(serviceIdStr),
+        vendorId: vendorId != null ? Number(vendorId) : null,
+        budget,
+      });
+    });
+
+    const payload = {
+      services,
+      eventId,
+    };
+    try {
+      await raiseBookingRequest(payload);
+    } catch (err) {
+      console.error("Error in raiseBookingRequest: ", err);
+    }
   };
 
   const handleRaiseRequest = async () => {
+    const { valid, errors } = validateBookingStep2(bookingData);
+    if (!valid) {
+      setFieldErrors(errors);
+      return;
+    }
+    setFieldErrors({});
+
     const payload = {
       selectedVendors,
       selectedServices,
       budgets,
       totalAmount,
     };
-    console.log(bookingData);
-    console.log(payload);
-    // you can do validation here if desired
     setIsProcessing(true);
     try {
       const res = await createEvent(bookingData);
-      await raiseRequest(payload,res.data);
+      await raiseRequest(payload, res.data);
 
       setBookingComplete(true);
       setCurrentStep(3);
       setTimeout(() => {
-      navigate('/user-dashboard');
+        navigate("/user-dashboard");
       }, 3000);
     } catch (err) {
       console.error("Error raising request", err);
@@ -162,6 +209,7 @@ const BookingModal = ({
     setCurrentStep(1);
     setBookingComplete(false);
     setIsProcessing(false);
+    setFieldErrors({});
     setBookingData({
       eventDate: eventDate || "",
       eventTime: "",
@@ -171,6 +219,8 @@ const BookingModal = ({
       contactName: "",
       contactPhone: "",
       contactEmail: "",
+      eventType: eventType || "",
+      userId: sessionStorage.getItem("userId") || "",
     });
     onHide();
   };
@@ -219,8 +269,11 @@ const BookingModal = ({
                     onChange={(e) =>
                       handleInputChange("eventDate", e.target.value)
                     }
-                    required
+                    isInvalid={!!fieldErrors.eventDate}
                   />
+                  <Form.Control.Feedback type="invalid">
+                    {fieldErrors.eventDate}
+                  </Form.Control.Feedback>
                 </Form.Group>
               </Col>
               <Col md={6} className="mb-3">
@@ -232,8 +285,11 @@ const BookingModal = ({
                     onChange={(e) =>
                       handleInputChange("eventTime", e.target.value)
                     }
-                    required
+                    isInvalid={!!fieldErrors.eventTime}
                   />
+                  <Form.Control.Feedback type="invalid">
+                    {fieldErrors.eventTime}
+                  </Form.Control.Feedback>
                 </Form.Group>
               </Col>
             </Row>
@@ -250,8 +306,11 @@ const BookingModal = ({
                     placeholder="Enter complete venue address"
                     value={bookingData.venue}
                     onChange={(e) => handleInputChange("venue", e.target.value)}
-                    required
+                    isInvalid={!!fieldErrors.venue}
                   />
+                  <Form.Control.Feedback type="invalid">
+                    {fieldErrors.venue}
+                  </Form.Control.Feedback>
                 </Form.Group>
               </Col>
               <Col md={4} className="mb-3">
@@ -262,13 +321,17 @@ const BookingModal = ({
                   </Form.Label>
                   <Form.Control
                     type="number"
+                    min={1}
                     placeholder="Number of guests"
                     value={bookingData.guestCount}
                     onChange={(e) =>
                       handleInputChange("guestCount", e.target.value)
                     }
-                    required
+                    isInvalid={!!fieldErrors.guestCount}
                   />
+                  <Form.Control.Feedback type="invalid">
+                    {fieldErrors.guestCount}
+                  </Form.Control.Feedback>
                 </Form.Group>
               </Col>
             </Row>
@@ -289,7 +352,6 @@ const BookingModal = ({
         );
 
       case 2:
-        // Contact info + summary
         return (
           <motion.div
             initial={{ opacity: 0, x: 20 }}
@@ -297,6 +359,10 @@ const BookingModal = ({
             exit={{ opacity: 0, x: -20 }}
           >
             <h5 className="mb-4">Contact Information</h5>
+            <p className="small text-muted mb-3">
+              Name and email are loaded from your profile. Phone is shown for
+              your records and cannot be edited here.
+            </p>
             <Row>
               <Col md={6} className="mb-3">
                 <Form.Group>
@@ -308,8 +374,11 @@ const BookingModal = ({
                     onChange={(e) =>
                       handleInputChange("contactName", e.target.value)
                     }
-                    required
+                    isInvalid={!!fieldErrors.contactName}
                   />
+                  <Form.Control.Feedback type="invalid">
+                    {fieldErrors.contactName}
+                  </Form.Control.Feedback>
                 </Form.Group>
               </Col>
               <Col md={6} className="mb-3">
@@ -317,13 +386,21 @@ const BookingModal = ({
                   <Form.Label>Phone Number</Form.Label>
                   <Form.Control
                     type="tel"
-                    placeholder="+91 9876543210"
+                    placeholder="10-digit mobile"
                     value={bookingData.contactPhone}
-                    onChange={(e) =>
-                      handleInputChange("contactPhone", e.target.value)
-                    }
-                    required
+                    readOnly
+                    className="bg-light"
+                    tabIndex={0}
+                    aria-readonly="true"
+                    isInvalid={!!fieldErrors.contactPhone}
                   />
+                  <Form.Text className="text-muted">
+                    From your profile (read-only). Update it under Edit Profile
+                    if needed.
+                  </Form.Text>
+                  <Form.Control.Feedback type="invalid">
+                    {fieldErrors.contactPhone}
+                  </Form.Control.Feedback>
                 </Form.Group>
               </Col>
             </Row>
@@ -337,11 +414,13 @@ const BookingModal = ({
                 onChange={(e) =>
                   handleInputChange("contactEmail", e.target.value)
                 }
-                required
+                isInvalid={!!fieldErrors.contactEmail}
               />
+              <Form.Control.Feedback type="invalid">
+                {fieldErrors.contactEmail}
+              </Form.Control.Feedback>
             </Form.Group>
 
-            {/* Booking Summary */}
             <Card className="border-0 bg-light">
               <Card.Body>
                 <h6 className="mb-3">Booking Summary</h6>
@@ -366,7 +445,6 @@ const BookingModal = ({
 
                 <hr />
 
-                {/* Services & Vendors list: use selectedVendors to show service name (best-effort) and vendor name */}
                 <div className="mb-2">
                   <strong>Services & Vendors</strong>
                 </div>
@@ -465,11 +543,19 @@ const BookingModal = ({
             )}
 
             {currentStep < 2 ? (
-              <Button variant="primary" onClick={handleNextStep}>
+              <Button
+                variant="primary"
+                onClick={handleNextStep}
+                disabled={!step1Valid}
+              >
                 Next
               </Button>
             ) : (
-              <Button variant="success" onClick={handleRaiseRequest}>
+              <Button
+                variant="success"
+                onClick={handleRaiseRequest}
+                disabled={!step2Valid}
+              >
                 Raise Request
               </Button>
             )}

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Container, Row, Col, Card, Form, Button, Alert } from 'react-bootstrap';
+import { validateContactForm } from '../utils/formValidation';
 import { motion } from 'framer-motion';
 import { FaPhone, FaEnvelope, FaMapMarkerAlt, FaClock, FaPaperPlane, FaFacebook, FaTwitter, FaInstagram, FaLinkedin } from 'react-icons/fa';
 
@@ -12,17 +13,30 @@ const Contact = () => {
     message: ''
   });
   const [showAlert, setShowAlert] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
+
+  const contactValid = useMemo(
+    () => validateContactForm(formData).valid,
+    [formData]
+  );
 
   const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormErrors((prev) => ({ ...prev, [name]: undefined }));
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [name]: value
     });
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Here you would typically send the form data to your backend
+    const { valid, errors } = validateContactForm(formData);
+    if (!valid) {
+      setFormErrors(errors);
+      return;
+    }
+    setFormErrors({});
     console.log('Form submitted:', formData);
     setShowAlert(true);
     setFormData({
@@ -166,7 +180,7 @@ const Contact = () => {
                   </Alert>
                 )}
 
-                <Form onSubmit={handleSubmit}>
+                <Form noValidate onSubmit={handleSubmit}>
                   <Row className="mb-3">
                     <Col md={6}>
                       <Form.Group>
@@ -178,8 +192,9 @@ const Contact = () => {
                           onChange={handleInputChange}
                           className="form-control-modern"
                           placeholder="Enter your full name"
-                          required
+                          isInvalid={!!formErrors.name}
                         />
+                        <Form.Control.Feedback type="invalid">{formErrors.name}</Form.Control.Feedback>
                       </Form.Group>
                     </Col>
                     <Col md={6}>
@@ -192,8 +207,9 @@ const Contact = () => {
                           onChange={handleInputChange}
                           className="form-control-modern"
                           placeholder="Enter your email"
-                          required
+                          isInvalid={!!formErrors.email}
                         />
+                        <Form.Control.Feedback type="invalid">{formErrors.email}</Form.Control.Feedback>
                       </Form.Group>
                     </Col>
                   </Row>
@@ -205,12 +221,13 @@ const Contact = () => {
                         <Form.Control
                           type="tel"
                           name="phone"
-                          pattern='[0-9]{10}'
                           value={formData.phone}
                           onChange={handleInputChange}
                           className="form-control-modern"
-                          placeholder="Enter your phone number"
+                          placeholder="10-digit mobile (optional)"
+                          isInvalid={!!formErrors.phone}
                         />
+                        <Form.Control.Feedback type="invalid">{formErrors.phone}</Form.Control.Feedback>
                       </Form.Group>
                     </Col>
                     <Col md={6}>
@@ -221,7 +238,7 @@ const Contact = () => {
                           value={formData.subject}
                           onChange={handleInputChange}
                           className="form-control-modern"
-                          required
+                          isInvalid={!!formErrors.subject}
                         >
                           <option value="">Select a subject</option>
                           <option value="general">General Inquiry</option>
@@ -230,6 +247,7 @@ const Contact = () => {
                           <option value="technical">Technical Support</option>
                           <option value="feedback">Feedback</option>
                         </Form.Select>
+                        <Form.Control.Feedback type="invalid">{formErrors.subject}</Form.Control.Feedback>
                       </Form.Group>
                     </Col>
                   </Row>
@@ -244,14 +262,16 @@ const Contact = () => {
                       onChange={handleInputChange}
                       className="form-control-modern"
                       placeholder="Tell us how we can help you..."
-                      required
+                      isInvalid={!!formErrors.message}
                     />
+                    <Form.Control.Feedback type="invalid">{formErrors.message}</Form.Control.Feedback>
                   </Form.Group>
 
                   <Button
                     type="submit"
                     size="lg"
                     className="btn-modern gradient-primary w-100"
+                    disabled={!contactValid}
                   >
                     <FaPaperPlane className="me-2" />
                     Send Message

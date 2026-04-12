@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Container,
   Row,
@@ -7,6 +7,7 @@ import {
   Button,
   Form,
   Modal,
+  Alert,
 } from "react-bootstrap";
 import { motion } from "framer-motion";
 import {
@@ -25,6 +26,7 @@ import {
   fetchAllEventTypes,
   fetchRecommendedVendors,
 } from "../services/api";
+import { validateEventPlanSearch } from "../utils/formValidation";
 
 const eventServiceMap = {
   Wedding: [
@@ -99,6 +101,7 @@ const SearchAndBook = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [planAttempted, setPlanAttempted] = useState(false);
   // removed single bookingVendor approach; we'll store selected vendors per service
   const [bookingVendor, setBookingVendor] = useState(null);
   const [recommendedByService, setRecommendedByService] = useState({}); // { [serviceId]: [vendor,...] }
@@ -427,6 +430,30 @@ const SearchAndBook = () => {
     Boolean(selectedVendorsByService[id])
   );
 
+  const planValidation = useMemo(
+    () =>
+      validateEventPlanSearch({
+        eventType,
+        selectedState,
+        selectedCity,
+        location,
+        date,
+        guestCount,
+        selectedServices,
+      }),
+    [
+      eventType,
+      selectedState,
+      selectedCity,
+      location,
+      date,
+      guestCount,
+      selectedServices,
+    ]
+  );
+  const planValid = planValidation.valid;
+  const planErrors = planValidation.errors;
+
   return (
     <Container className="my-4 fade-in">
       <motion.div
@@ -451,7 +478,15 @@ const SearchAndBook = () => {
       </motion.div>
 
       <Card className="card-modern mb-4 p-4">
-        <Form>
+        <Form
+          onSubmit={(e) => e.preventDefault()}
+          noValidate
+        >
+          {planAttempted && !planValid && (
+            <Alert variant="warning" className="mb-3" dismissible onClose={() => setPlanAttempted(false)}>
+              Fix the highlighted fields below, then search again.
+            </Alert>
+          )}
           <Row className="mb-4">
             <Col md={6}>
               <Form.Group>
@@ -476,6 +511,7 @@ const SearchAndBook = () => {
                     }
                   }}
                   className="form-control-modern"
+                  isInvalid={!!planErrors.eventType}
                 >
                   <option value="">Select event type</option>
                   {eventTypesList.map((t) => (
@@ -484,6 +520,9 @@ const SearchAndBook = () => {
                     </option>
                   ))}
                 </Form.Select>
+                <Form.Control.Feedback type="invalid">
+                  {planErrors.eventType}
+                </Form.Control.Feedback>
               </Form.Group>
             </Col>
             <Col md={6}>
@@ -503,6 +542,7 @@ const SearchAndBook = () => {
                       setCities([]);
                       fetchCities(state);
                     }}
+                    isInvalid={!!planErrors.location}
                   >
                     <option value="">Select State</option>
                     {states.map((state) => (
@@ -519,6 +559,7 @@ const SearchAndBook = () => {
                     value={selectedCity}
                     onChange={(e) => setSelectedCity(e.target.value)}
                     disabled={!selectedState}
+                    isInvalid={!!planErrors.location}
                   >
                     <option value="">Select City</option>
                     {cities.map((city) => (
@@ -536,7 +577,13 @@ const SearchAndBook = () => {
                     readOnly
                     className="form-control-modern"
                     placeholder="City, State, India"
+                    isInvalid={!!planErrors.location}
                   />
+                )}
+                {planErrors.location && (
+                  <Form.Control.Feedback type="invalid" className="d-block">
+                    {planErrors.location}
+                  </Form.Control.Feedback>
                 )}
               </Form.Group>
             </Col>
@@ -553,7 +600,11 @@ const SearchAndBook = () => {
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
                   className="form-control-modern"
+                  isInvalid={!!planErrors.date}
                 />
+                <Form.Control.Feedback type="invalid">
+                  {planErrors.date}
+                </Form.Control.Feedback>
               </Form.Group>
             </Col>
             <Col md={4}>
@@ -567,7 +618,12 @@ const SearchAndBook = () => {
                   onChange={(e) => setGuestCount(e.target.value)}
                   className="form-control-modern"
                   placeholder="Number of guests"
+                  min={1}
+                  isInvalid={!!planErrors.guestCount}
                 />
+                <Form.Control.Feedback type="invalid">
+                  {planErrors.guestCount}
+                </Form.Control.Feedback>
               </Form.Group>
             </Col>
             <Col md={4}>
@@ -598,6 +654,11 @@ const SearchAndBook = () => {
           </Row>
 
           <Form.Label className="fw-semibold mb-3">Select Services:</Form.Label>
+          {planErrors.services && (
+            <div className="invalid-feedback d-block mb-2" role="alert">
+              {planErrors.services}
+            </div>
+          )}
           <Row className="mb-4">
             {availableServices.map(({ name, serviceId, iconUrl, color }) => (
               <Col md={3} key={serviceId} className="mb-3">
@@ -675,9 +736,12 @@ const SearchAndBook = () => {
             variant="primary"
             size="lg"
             className="w-100 btn-modern gradient-primary"
+            disabled={!planValid}
             onClick={async () => {
+              setPlanAttempted(true);
+              if (!planValid) return;
               setIsSearching(true);
-              await recommendedVendors(); // fetches for all selected services & caches
+              await recommendedVendors();
               setShowResults(false);
               setTimeout(() => {
                 setIsSearching(false);

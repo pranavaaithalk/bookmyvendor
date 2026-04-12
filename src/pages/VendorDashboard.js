@@ -1,4 +1,4 @@
-import React, { useState, useEffect, use } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Container,
   Row,
@@ -44,10 +44,13 @@ import {
   respondToServiceRequest,
   getVendorReviews,
 } from "../services/api"; // <-- make sure this path matches your project
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import ProfileImageUpload from "../services/ImageUpload";
+import { validateVendorProfile } from "../utils/formValidation";
+import OtpVerificationModal from "../components/OtpVerificationModal";
 
 const VendorDashboard = () => {
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("overview");
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
@@ -77,6 +80,8 @@ const VendorDashboard = () => {
     businessLogoUrl: "",
   });
   const [profileForm, setProfileForm] = useState(null);
+  const [vendorEmailOtpOpen, setVendorEmailOtpOpen] = useState(false);
+  const [pendingVendorEmail, setPendingVendorEmail] = useState("");
   const [pendingRequests, setPendingRequests] = useState([]);
   const [confirmedBookings, setConfirmedBookings] = useState([]);
   const [loadingRequests, setLoadingRequests] = useState(true);
@@ -86,7 +91,20 @@ const VendorDashboard = () => {
   const [reviews, setReviews] = useState([]);
   const [showImageUploader, setShowImageUploader] = useState(false);
 
+  useEffect(() => {
+    const t = searchParams.get("tab");
+    if (t === "bookings") {
+      setActiveTab("bookings");
+    }
+  }, [searchParams]);
 
+  const vendorProfileValidation = useMemo(() => {
+    if (!profileForm) return { valid: false, errors: {} };
+    return validateVendorProfile(profileForm);
+  }, [profileForm]);
+
+  const profileFieldErrors = vendorProfileValidation.errors;
+  const vendorProfileFormValid = vendorProfileValidation.valid;
 
   // analytics + bookings remain static demo data (you can fetch them later)
   const analytics = {
@@ -291,7 +309,12 @@ const VendorDashboard = () => {
     const vendorId = sessionStorage.getItem("vendorId");
     const payload = buildUpdatePayload(profileForm);
 
-    await updateVendorProfile(vendorId, payload);
+    try {
+      await updateVendorProfile(vendorId, payload);
+    } catch (err) {
+      console.error("Vendor profile update failed", err);
+      throw err;
+    }
 
     // Refresh profile from backend
     const refreshed = await getVendorProfile(vendorId);
@@ -299,6 +322,7 @@ const VendorDashboard = () => {
     const dto = refreshed.data;
     setVendorProfile((prev) => ({
       ...prev,
+      bname: dto.businessName || prev.bname,
       name: dto.businessName || prev.name,
       description: dto.businessDescription || prev.description,
       phone: dto.businessPhone || prev.phone,
@@ -959,10 +983,14 @@ const VendorDashboard = () => {
                     <Form.Control
                       type="text"
                       value={profileForm.name}
-                      onChange={(e) =>
-                        setProfileForm({ ...profileForm, name: e.target.value })
-                      }
+                      onChange={(e) => {
+                        setProfileForm({ ...profileForm, name: e.target.value });
+                      }}
+                      isInvalid={!!profileFieldErrors.name}
                     />
+                    <Form.Control.Feedback type="invalid">
+                      {profileFieldErrors.name}
+                    </Form.Control.Feedback>
                   </Form.Group>
                 </Col>
               </Row>
@@ -973,13 +1001,17 @@ const VendorDashboard = () => {
                     <Form.Control
                       type="text"
                       value={profileForm.location}
-                      onChange={(e) =>
+                      onChange={(e) => {
                         setProfileForm({
                           ...profileForm,
                           location: e.target.value,
-                        })
-                      }
+                        });
+                      }}
+                      isInvalid={!!profileFieldErrors.location}
                     />
+                    <Form.Control.Feedback type="invalid">
+                      {profileFieldErrors.location}
+                    </Form.Control.Feedback>
                   </Form.Group>
                 </Col>
                 <Col md={3} className="mb-3">
@@ -988,13 +1020,14 @@ const VendorDashboard = () => {
                     <Form.Control
                       type="tel"
                       value={profileForm.phone}
-                      onChange={(e) =>
-                        setProfileForm({
-                          ...profileForm,
-                          phone: e.target.value,
-                        })
-                      }
+                      readOnly
+                      className="bg-light"
+                      tabIndex={-1}
+                      aria-readonly="true"
                     />
+                    <Form.Text className="text-muted">
+                      Phone cannot be changed here.
+                    </Form.Text>
                   </Form.Group>
                 </Col>
                 <Col md={3} className="mb-3">
@@ -1009,8 +1042,14 @@ const VendorDashboard = () => {
                           email: e.target.value,
                         })
                       }
-                      disabled
+                      isInvalid={!!profileFieldErrors.email}
                     />
+                    <Form.Control.Feedback type="invalid">
+                      {profileFieldErrors.email}
+                    </Form.Control.Feedback>
+                    <Form.Text className="text-muted">
+                      Email changes require a verification code.
+                    </Form.Text>
                   </Form.Group>
                 </Col>
               </Row>
@@ -1021,13 +1060,17 @@ const VendorDashboard = () => {
                     <Form.Control
                       type="text"
                       value={profileForm.experience}
-                      onChange={(e) =>
+                      onChange={(e) => {
                         setProfileForm({
                           ...profileForm,
                           experience: e.target.value,
-                        })
-                      }
+                        });
+                      }}
+                      isInvalid={!!profileFieldErrors.experience}
                     />
+                    <Form.Control.Feedback type="invalid">
+                      {profileFieldErrors.experience}
+                    </Form.Control.Feedback>
                   </Form.Group>
                 </Col>
                 <Col md={6} className="mb-3">
@@ -1036,13 +1079,17 @@ const VendorDashboard = () => {
                     <Form.Control
                       type="text"
                       value={profileForm.priceRange}
-                      onChange={(e) =>
+                      onChange={(e) => {
                         setProfileForm({
                           ...profileForm,
                           priceRange: e.target.value,
-                        })
-                      }
+                        });
+                      }}
+                      isInvalid={!!profileFieldErrors.priceRange}
                     />
+                    <Form.Control.Feedback type="invalid">
+                      {profileFieldErrors.priceRange}
+                    </Form.Control.Feedback>
                   </Form.Group>
                 </Col>
               </Row>
@@ -1052,13 +1099,17 @@ const VendorDashboard = () => {
                   as="textarea"
                   rows={3}
                   value={profileForm.description}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     setProfileForm({
                       ...profileForm,
                       description: e.target.value,
-                    })
-                  }
+                    });
+                  }}
+                  isInvalid={!!profileFieldErrors.description}
                 />
+                <Form.Control.Feedback type="invalid">
+                  {profileFieldErrors.description}
+                </Form.Control.Feedback>
               </Form.Group>
               <Form.Group className="mb-3">
                 <Button
@@ -1101,10 +1152,19 @@ const VendorDashboard = () => {
           </Button>
           <Button
             variant="primary"
-            onClick={() => {
+            disabled={!vendorProfileFormValid}
+            onClick={async () => {
               if (!profileForm) return;
+              if (!validateVendorProfile(profileForm).valid) return;
+              const clean = String(profileForm.email || "").trim();
+              const orig = String(vendorProfile?.email || "").trim();
+              if (clean !== orig) {
+                setPendingVendorEmail(clean);
+                setVendorEmailOtpOpen(true);
+                return;
+              }
               try {
-                handleProfileUpdate(profileForm);
+                await handleProfileUpdate(profileForm);
                 setShowProfileModal(false);
                 setAlertMessage("Profile updated successfully!");
                 setShowAlert(true);
@@ -1163,6 +1223,33 @@ const VendorDashboard = () => {
           ))}
         </Modal.Body>
       </Modal>
+
+      <OtpVerificationModal
+        show={vendorEmailOtpOpen}
+        onHide={() => setVendorEmailOtpOpen(false)}
+        channel="email"
+        value={pendingVendorEmail}
+        title="Verify your new business email"
+        onVerified={async () => {
+          if (!profileForm || !pendingVendorEmail) return;
+          setVendorEmailOtpOpen(false);
+          try {
+            const next = { ...profileForm, email: pendingVendorEmail.trim() };
+            await handleProfileUpdate(next);
+            setProfileForm(next);
+            setShowProfileModal(false);
+            setAlertMessage("Profile updated successfully!");
+            setShowAlert(true);
+            setTimeout(() => setShowAlert(false), 3000);
+          } catch (err) {
+            console.error("Profile update failed", err);
+            setAlertMessage(
+              err?.response?.data || "Failed to update profile"
+            );
+            setShowAlert(true);
+          }
+        }}
+      />
 
       <style jsx>{`
         .gradient-text {
