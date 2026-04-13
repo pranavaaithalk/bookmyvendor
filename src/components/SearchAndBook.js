@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Container,
   Row,
@@ -13,18 +13,21 @@ import { motion } from "framer-motion";
 import {
   FaSearch,
   FaStar,
-  FaExchangeAlt,
   FaMapMarkerAlt,
   FaCalendarAlt,
   FaUsers,
   FaRupeeSign,
   FaCheckCircle,
+  FaPencilAlt,
+  FaPhone,
+  FaEnvelope,
 } from "react-icons/fa";
 import BookingModal from "../components/BookingModal";
 import {
   fetchAllServicesAvailable,
   fetchAllEventTypes,
   fetchRecommendedVendors,
+  getVendorProfile,
 } from "../services/api";
 import { validateEventPlanSearch } from "../utils/formValidation";
 
@@ -97,7 +100,6 @@ const SearchAndBook = () => {
   const [budgets, setBudgets] = useState({});
 
   // UI
-  const [compareList, setCompareList] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
@@ -108,6 +110,18 @@ const SearchAndBook = () => {
 
   // NEW: selected vendor per serviceId -> vendor object
   const [selectedVendorsByService, setSelectedVendorsByService] = useState({});
+
+  // vendor details modal
+  const [showVendorDetails, setShowVendorDetails] = useState(false);
+  const [vendorDetailsLoading, setVendorDetailsLoading] = useState(false);
+  const [vendorDetails, setVendorDetails] = useState(null);
+  /** True only after a successful `getVendorProfile` (DB vendor). Google-sourced vendors skip or fail this call. */
+  const [vendorDetailsFromBackend, setVendorDetailsFromBackend] =
+    useState(false);
+
+  const lastVendorSearchKeyRef = useRef("");
+  /** Bumps on each full vendor search so in-flight responses cannot overwrite newer results. */
+  const vendorSearchSeqRef = useRef(0);
 
   // helpers
   const formatCurrency = (n) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
@@ -247,56 +261,76 @@ const SearchAndBook = () => {
     setBudgets((prev) => ({ ...prev, [String(serviceId)]: value }));
   };
 
-
-  const toggleCompare = (vendor) => {
-    setCompareList((prev) => {
-      const exists = prev.find((v) => v.vendorId === vendor.vendorId);
-      if (exists) return prev.filter((v) => v.vendorId !== vendor.vendorId);
-      if (prev.length < 3) return [...prev, vendor];
-      return prev;
-    });
+  const getVendorSearchKey = () => {
+    const city = (location || "").split(",")[0]?.trim() || "";
+    return `${city}|${date || ""}|${String(guestCount || "")}`;
   };
 
-  // recommendedVendors (same approach as earlier)
-  const recommendedVendors = async (serviceId) => {
-    const fetchFor = async (id) => {
-      if (recommendedByService[id]) return recommendedByService[id];
-      const params = {
-        serviceId: String(id),
-        city: location.split(",")[0] || "",
-        eventDate: date,
-        guestCount: String(guestCount),
-      };
-      try {
-        const resp = await fetchRecommendedVendors(params);
-        const list = resp?.data ?? resp ?? [];
-        setRecommendedByService((prev) => ({ ...prev, [id]: list }));
-        return list;
-      } catch (err) {
-        console.error("Error fetching recommended vendors for", id, err);
-        setRecommendedByService((prev) => ({ ...prev, [id]: [] }));
-        return [];
-      }
-    };
-
-    if (serviceId) return await fetchFor(String(serviceId));
-
+  /**
+   * Loads top vendors per selected service.
+   * Important: do not trust `recommendedByService` from a stale closure together with `lastVendorSearchKeyRef`
+   * (React may not have applied a clearing setState yet). Use a request sequence and one merge after fetch.
+   */
+  const recommendedVendors = async () => {
+    const searchKey = getVendorSearchKey();
     const toFetch = Object.keys(selectedServices).filter(
       (id) => selectedServices[id]
     );
     if (toFetch.length === 0) return {};
+
+    const prevSearchKey = lastVendorSearchKeyRef.current;
+    const searchInputsChanged = prevSearchKey !== searchKey;
+
+    // Same city/date/guests and we already have arrays for every selected service — skip network.
+    if (!searchInputsChanged) {
+      const allHaveCache = toFetch.every((id) =>
+        Array.isArray(recommendedByService[id])
+      );
+      if (allHaveCache) {
+        return Object.fromEntries(
+          toFetch.map((id) => [id, recommendedByService[id]])
+        );
+      }
+    }
+
     setIsSearching(true);
+    const seq = ++vendorSearchSeqRef.current;
+    const city = (location || "").split(",")[0]?.trim() || "";
+
     try {
       const promises = toFetch.map((id) =>
-        fetchFor(id)
-          .then((list) => ({ id, list }))
-          .catch(() => ({ id, list: [] }))
+        fetchRecommendedVendors({
+          serviceId: String(id),
+          city,
+          eventDate: date,
+          guestCount: String(guestCount),
+        })
+          .then((resp) => ({
+            id,
+            list: resp?.data ?? resp ?? [],
+          }))
+          .catch((err) => {
+            console.error("Error fetching recommended vendors for", id, err);
+            return { id, list: [] };
+          })
       );
+
       const results = await Promise.all(promises);
-      const next = { ...recommendedByService };
-      results.forEach((r) => (next[r.id] = r.list));
-      setRecommendedByService(next);
-      return next;
+
+      if (seq !== vendorSearchSeqRef.current) {
+        return {};
+      }
+
+      lastVendorSearchKeyRef.current = searchKey;
+      setRecommendedByService((prev) => {
+        const next = { ...prev };
+        results.forEach((r) => {
+          next[r.id] = r.list;
+        });
+        return next;
+      });
+
+      return Object.fromEntries(results.map((r) => [r.id, r.list]));
     } finally {
       setIsSearching(false);
     }
@@ -316,6 +350,38 @@ const SearchAndBook = () => {
     });
   };
 
+  const resetLocationSelection = () => {
+    setLocation("");
+    setSelectedState("");
+    setSelectedCity("");
+    setCities([]);
+  };
+
+  const openVendorDetails = async (vendor) => {
+    setBookingVendor(vendor);
+    setVendorDetails(vendor);
+    setVendorDetailsFromBackend(false);
+    setShowVendorDetails(true);
+
+    if (!vendor?.vendorId) return;
+
+    setVendorDetailsLoading(true);
+    try {
+      const resp = await getVendorProfile(vendor.vendorId);
+      const data = resp?.data ?? resp;
+      if (data && typeof data === "object") {
+        setVendorDetails({ ...vendor, ...data });
+        setVendorDetailsFromBackend(true);
+      }
+    } catch {
+      // Google / external vendors: no DB profile — keep list card fields only (no error UI).
+      setVendorDetails(vendor);
+      setVendorDetailsFromBackend(false);
+    } finally {
+      setVendorDetailsLoading(false);
+    }
+  };
+
   const VendorCard = ({ vendor, serviceId }) => {
     const isSelectedForThisService =
       selectedVendorsByService[String(serviceId)] &&
@@ -323,21 +389,36 @@ const SearchAndBook = () => {
 
     return (
       <motion.div
+        className="h-100 w-100 d-flex"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
         whileHover={{ y: -5 }}
       >
-        <Card className="card-modern h-100 position-relative">
-          <Card.Body className="d-flex flex-column">
-            <Card.Title className="d-flex justify-content-between align-items-start">
-              <span>{vendor.vendorName}</span>
+        <Card className="card-modern h-100 w-100 position-relative flex-grow-1">
+          <Card.Body className="d-flex flex-column h-100 py-3">
+            <div
+              className="d-flex justify-content-between align-items-start gap-2 mb-2 flex-shrink-0"
+              style={{ minHeight: "4.5rem" }}
+            >
+              <Card.Title
+                as="h3"
+                className="fs-6 fw-semibold mb-0 flex-grow-1 text-break pe-1"
+                style={{
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                  lineHeight: 1.35,
+                }}
+              >
+                {vendor.vendorName}
+              </Card.Title>
               {isSelectedForThisService ? (
                 <Button
-                  variant={
-                    isSelectedForThisService ? "success" : "outline-primary"
-                  }
+                  variant="success"
                   size="sm"
+                  className="flex-shrink-0 align-self-start"
                   onClick={() => selectVendorForService(serviceId, vendor)}
                 >
                   <>
@@ -345,36 +426,36 @@ const SearchAndBook = () => {
                   </>
                 </Button>
               ) : null}
-            </Card.Title>
-            <div className="align-items-center d-flex flex-column">
+            </div>
+            <div className="align-items-center d-flex flex-column flex-shrink-0 w-100">
               <a
                 href={vendor.businessLogoUrl || null}
                 target="_blank"
                 rel="noopener noreferrer"
+                className="w-100 d-block"
               >
                 <img
                   src={vendor.businessLogoUrl || "/default-avatar.png"}
                   alt="Profile"
-                  className="rounded-rectangle mb-3"
+                  className="rounded-rectangle mb-2 w-100"
                   style={{
-                    width: 300,
                     height: 150,
                     borderRadius: "8px",
                     objectFit: "cover",
-                    marginTop: 10,
                   }}
                 />
               </a>
-              <small>Press on image to view</small>
+              <small className="text-muted">Press on image to view</small>
             </div>
-            <small className="text-muted fw-bold d-flex align-items-center">
-              <FaStar className="me-1" /> {vendor.vendorRating}
+            <small className="text-muted fw-bold d-flex align-items-center mt-2 mb-1">
+              <FaStar className="me-1 flex-shrink-0" /> {vendor.vendorRating}
             </small>
-            <small className="text-muted fw-bold d-flex align-items-center">
-              <FaMapMarkerAlt className="me-1" /> {vendor.vendorCity}
+            <small className="text-muted fw-bold d-flex align-items-center mb-2 text-break">
+              <FaMapMarkerAlt className="me-1 flex-shrink-0" />{" "}
+              {vendor.vendorCity}
             </small>
 
-            <div className="mt-auto">
+            <div className="mt-auto pt-1">
               <Row className="g-2">
                 <Col>
                   <Button
@@ -382,9 +463,7 @@ const SearchAndBook = () => {
                     size="sm"
                     className="w-100"
                     onClick={() => {
-                      /* view details */
-                      setBookingVendor(vendor); // allow quick preview in modal if you want
-                      // NOTE: do not open the booking modal here in the new flow
+                      openVendorDetails(vendor);
                     }}
                   >
                     View Details
@@ -468,12 +547,6 @@ const SearchAndBook = () => {
               Find and book the best vendors for your special day
             </p>
           </div>
-          {compareList.length > 0 && (
-            <Button variant="warning" className="btn-modern">
-              <FaExchangeAlt className="me-2" />
-              Compare ({compareList.length})
-            </Button>
-          )}
         </div>
       </motion.div>
 
@@ -571,14 +644,27 @@ const SearchAndBook = () => {
                 )}
 
                 {location !== "" && (
-                  <Form.Control
-                    type="text"
-                    value={location}
-                    readOnly
-                    className="form-control-modern"
-                    placeholder="City, State, India"
-                    isInvalid={!!planErrors.location}
-                  />
+                  <div className="d-flex gap-2 align-items-center">
+                    <Form.Control
+                      type="text"
+                      value={location}
+                      readOnly
+                      className="form-control-modern"
+                      placeholder="City, State, India"
+                      isInvalid={!!planErrors.location}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline-secondary"
+                      onClick={resetLocationSelection}
+                      aria-label="Change location"
+                      title="Change location"
+                      className="d-inline-flex align-items-center justify-content-center"
+                      style={{ height: "42px", width: "46px" }}
+                    >
+                      <FaPencilAlt />
+                    </Button>
+                  </div>
                 )}
                 {planErrors.location && (
                   <Form.Control.Feedback type="invalid" className="d-block">
@@ -791,11 +877,15 @@ const SearchAndBook = () => {
                     )}
                   </small>
                 </h4>
-                <Row>
+                <Row className="g-3 gy-3 align-items-stretch">
                   {recommendedByService[String(serviceId)].map((vs) => {
                     const vendor = vs.vendor ? vs.vendor : vs;
                     return (
-                      <Col md={4} key={vendor.vendorId} className="mb-3">
+                      <Col
+                        md={4}
+                        key={vendor.vendorId}
+                        className="d-flex align-items-stretch"
+                      >
                         <VendorCard vendor={vendor} serviceId={serviceId} />
                       </Col>
                     );
@@ -837,6 +927,115 @@ const SearchAndBook = () => {
           eventType?.eventTypeId ? Number(eventType.eventTypeId) : null
         }
       />
+
+      <Modal
+        show={showVendorDetails}
+        onHide={() => setShowVendorDetails(false)}
+        centered
+        size="lg"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Vendor Details</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {vendorDetailsLoading ? (
+            <div className="text-center py-4">
+              <div className="spinner-border text-primary mb-3" role="status">
+                <span className="visually-hidden">Loading...</span>
+              </div>
+              <div className="fw-semibold">Loading vendor details</div>
+            </div>
+          ) : (
+            <Row className="g-4">
+              <Col md={5}>
+                <img
+                  src={
+                    vendorDetails?.businessLogoUrl ||
+                    bookingVendor?.businessLogoUrl ||
+                    "/default-avatar.png"
+                  }
+                  alt={vendorDetails?.vendorName || bookingVendor?.vendorName || "Vendor"}
+                  className="w-100"
+                  style={{
+                    height: 240,
+                    objectFit: "cover",
+                    borderRadius: 12,
+                  }}
+                />
+              </Col>
+              <Col md={7}>
+                <div className="d-flex align-items-start justify-content-between gap-2">
+                  <div>
+                    <h4 className="mb-1">
+                      {vendorDetails?.vendorName || bookingVendor?.vendorName}
+                    </h4>
+                    <div className="text-muted d-flex align-items-center gap-2">
+                      <span className="d-inline-flex align-items-center">
+                        <FaStar className="me-1" />
+                        {vendorDetails?.vendorRating ??
+                          bookingVendor?.vendorRating ??
+                          "N/A"}
+                      </span>
+                      <span className="d-inline-flex align-items-center">
+                        <FaMapMarkerAlt className="me-1" />
+                        {vendorDetails?.vendorCity ??
+                          bookingVendor?.vendorCity ??
+                          vendorDetails?.location ??
+                          "N/A"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {vendorDetailsFromBackend &&
+                (vendorDetails?.businessPhone ||
+                  vendorDetails?.phone ||
+                  vendorDetails?.vendorPhone ||
+                  vendorDetails?.mobile ||
+                  vendorDetails?.businessEmail ||
+                  vendorDetails?.email ||
+                  vendorDetails?.vendorEmail) ? (
+                  <>
+                    <hr />
+                    <div className="mb-2 fw-semibold">Contact</div>
+                    {(vendorDetails?.businessPhone ||
+                      vendorDetails?.phone ||
+                      vendorDetails?.vendorPhone ||
+                      vendorDetails?.mobile) && (
+                      <div className="text-muted d-flex align-items-center mb-2">
+                        <FaPhone className="me-2 flex-shrink-0" />
+                        <span>
+                          {vendorDetails.businessPhone ||
+                            vendorDetails.phone ||
+                            vendorDetails.vendorPhone ||
+                            vendorDetails.mobile}
+                        </span>
+                      </div>
+                    )}
+                    {(vendorDetails?.businessEmail ||
+                      vendorDetails?.email ||
+                      vendorDetails?.vendorEmail) && (
+                      <div className="text-muted d-flex align-items-center">
+                        <FaEnvelope className="me-2 flex-shrink-0" />
+                        <span>
+                          {vendorDetails.businessEmail ||
+                            vendorDetails.email ||
+                            vendorDetails.vendorEmail}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                ) : null}
+              </Col>
+            </Row>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowVendorDetails(false)}>
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </Container>
   );
 };

@@ -1,8 +1,32 @@
 import React, { useState, useMemo } from 'react';
-import { Container, Row, Col, Card, Form, Button, Alert } from 'react-bootstrap';
+import {
+  Container,
+  Row,
+  Col,
+  Card,
+  Form,
+  Button,
+  Alert,
+  Spinner,
+} from 'react-bootstrap';
 import { validateContactForm } from '../utils/formValidation';
 import { motion } from 'framer-motion';
-import { FaPhone, FaEnvelope, FaMapMarkerAlt, FaClock, FaPaperPlane, FaFacebook, FaTwitter, FaInstagram, FaLinkedin } from 'react-icons/fa';
+import {
+  FaPhone,
+  FaEnvelope,
+  FaMapMarkerAlt,
+  FaClock,
+  FaPaperPlane,
+} from 'react-icons/fa';
+import { submitContactMessage } from '../services/api';
+
+const SUBJECT_LABELS = {
+  general: 'General Inquiry',
+  booking: 'Booking Support',
+  vendor: 'Vendor Partnership',
+  technical: 'Technical Support',
+  feedback: 'Feedback',
+};
 
 const Contact = () => {
   const [formData, setFormData] = useState({
@@ -14,6 +38,8 @@ const Contact = () => {
   });
   const [showAlert, setShowAlert] = useState(false);
   const [formErrors, setFormErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
 
   const contactValid = useMemo(
     () => validateContactForm(formData).valid,
@@ -29,24 +55,46 @@ const Contact = () => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setSubmitError(null);
     const { valid, errors } = validateContactForm(formData);
     if (!valid) {
       setFormErrors(errors);
       return;
     }
     setFormErrors({});
-    console.log('Form submitted:', formData);
-    setShowAlert(true);
-    setFormData({
-      name: '',
-      email: '',
-      phone: '',
-      subject: '',
-      message: ''
-    });
-    setTimeout(() => setShowAlert(false), 5000);
+    setSubmitting(true);
+    try {
+      const payload = {
+        name: String(formData.name || '').trim(),
+        email: String(formData.email || '').trim(),
+        phone: String(formData.phone || '').trim() || null,
+        subject: formData.subject,
+        subjectLabel:
+          SUBJECT_LABELS[formData.subject] || String(formData.subject || ''),
+        message: String(formData.message || '').trim(),
+      };
+      await submitContactMessage(payload);
+      setShowAlert(true);
+      setFormData({
+        name: '',
+        email: '',
+        phone: '',
+        subject: '',
+        message: ''
+      });
+      setTimeout(() => setShowAlert(false), 6000);
+    } catch (err) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data ||
+        err?.message ||
+        'Could not send your message. Please try again in a moment.';
+      setSubmitError(typeof msg === 'string' ? msg : JSON.stringify(msg));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const contactInfo = [
@@ -59,7 +107,7 @@ const Contact = () => {
     {
       icon: FaEnvelope,
       title: 'Email',
-      details: ['info@bookmyvendor.com', 'support@bookmyvendor.com'],
+      details: ['services@bmvindia.online'],
       color: '#6366f1'
     },
     {
@@ -71,16 +119,9 @@ const Contact = () => {
     {
       icon: FaClock,
       title: 'Business Hours',
-      details: ['Mon - Fri: 9:00 AM - 6:00 PM', 'Sat - Sun: 10:00 AM - 4:00 PM'],
+      details: ['Mon - Fri: 9:00 AM - 6:00 PM'],
       color: '#f59e0b'
     }
-  ];
-
-  const socialLinks = [
-    { icon: FaFacebook, url: '#', color: '#1877f2' },
-    { icon: FaTwitter, url: '#', color: '#1da1f2' },
-    { icon: FaInstagram, url: '#', color: '#e4405f' },
-    { icon: FaLinkedin, url: '#', color: '#0077b5' }
   ];
 
   return (
@@ -138,28 +179,6 @@ const Contact = () => {
                 </Card>
               </motion.div>
             ))}
-
-            {/* Social Media */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.7 }}
-              className="mt-4"
-            >
-              <h6 className="fw-bold mb-3">Follow Us</h6>
-              <div className="d-flex gap-3">
-                {socialLinks.map((social, index) => (
-                  <a
-                    key={index}
-                    href={social.url}
-                    className="social-link"
-                    style={{ backgroundColor: `${social.color}20`, color: social.color }}
-                  >
-                    <social.icon size={18} />
-                  </a>
-                ))}
-              </div>
-            </motion.div>
           </motion.div>
         </Col>
 
@@ -175,8 +194,13 @@ const Contact = () => {
                 <h3 className="mb-4">Send us a Message</h3>
                 
                 {showAlert && (
-                  <Alert variant="success" className="mb-4">
-                    <strong>Thank you!</strong> Your message has been sent successfully. We'll get back to you soon.
+                  <Alert variant="success" className="mb-4" dismissible onClose={() => setShowAlert(false)}>
+                    <strong>Thank you!</strong> Your message has been sent successfully. We&apos;ll get back to you soon.
+                  </Alert>
+                )}
+                {submitError && (
+                  <Alert variant="danger" className="mb-4" dismissible onClose={() => setSubmitError(null)}>
+                    {submitError}
                   </Alert>
                 )}
 
@@ -271,10 +295,19 @@ const Contact = () => {
                     type="submit"
                     size="lg"
                     className="btn-modern gradient-primary w-100"
-                    disabled={!contactValid}
+                    disabled={submitting || !contactValid}
                   >
-                    <FaPaperPlane className="me-2" />
-                    Send Message
+                    {submitting ? (
+                      <>
+                        <Spinner animation="border" size="sm" className="me-2" />
+                        Sending…
+                      </>
+                    ) : (
+                      <>
+                        <FaPaperPlane className="me-2" />
+                        Send Message
+                      </>
+                    )}
                   </Button>
                 </Form>
               </Card.Body>
@@ -324,22 +357,6 @@ const Contact = () => {
           align-items: center;
           justify-content: center;
           flex-shrink: 0;
-        }
-
-        .social-link {
-          width: 45px;
-          height: 45px;
-          border-radius: 12px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          text-decoration: none;
-          transition: all 0.3s ease;
-        }
-
-        .social-link:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
         }
 
         .map-container iframe {

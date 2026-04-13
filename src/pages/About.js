@@ -2,8 +2,35 @@ import React from 'react';
 import { Container, Row, Col, Card, Button } from 'react-bootstrap';
 import { motion } from 'framer-motion';
 import { FaRocket, FaUsers, FaHeart, FaAward, FaHandshake, FaLightbulb, FaShieldAlt } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 
 const About = () => {
+  const navigate = useNavigate();
+
+  const isVendorSession = () => {
+    const v = sessionStorage.getItem('vendorId');
+    return v != null && v !== '';
+  };
+
+  /** Client-only session: has userId and is not a vendor session (no vendorId). */
+  const isClientSession = () =>
+    !!sessionStorage.getItem('userId') && !isVendorSession();
+
+  const handlePlanYourEvent = () => {
+    if (isClientSession()) {
+      navigate('/event-create');
+    } else {
+      navigate('/auth?type=client');
+    }
+  };
+
+  const handleBecomeVendor = () => {
+    if (isVendorSession()) {
+      navigate('/vendor-dashboard');
+    } else {
+      navigate('/auth?type=vendor&tab=signup');
+    }
+  };
   const values = [
     {
       icon: FaHeart,
@@ -149,7 +176,7 @@ const About = () => {
                   What started as a simple idea in 2024, when our college gave us the opportunity 
                   to work on this as our final year project, is now evolving into a comprehensive 
                   event management platform. Special thanks to our college NMAMIT for giving us 
-                  this opportunity and to our mentors Ashish Singh and Manjunath A S.
+                  this opportunity and to our mentor Mr. Manjunatha A S.
                 </p>
               </Col>
             </Row>
@@ -288,11 +315,22 @@ const About = () => {
               we're here to help you succeed.
             </p>
             <div className="d-flex justify-content-center gap-3 flex-wrap">
-              <Button size="lg" className="btn-modern gradient-primary px-4">
+              <Button
+                size="lg"
+                className="btn-modern gradient-primary px-4"
+                type="button"
+                onClick={handlePlanYourEvent}
+              >
                 <FaHeart className="me-2" />
                 Plan Your Event
               </Button>
-              <Button variant="outline-primary" size="lg" className="btn-modern px-4">
+              <Button
+                variant="outline-primary"
+                size="lg"
+                className="btn-modern px-4"
+                type="button"
+                onClick={handleBecomeVendor}
+              >
                 <FaHandshake className="me-2" />
                 Become a Vendor
               </Button>

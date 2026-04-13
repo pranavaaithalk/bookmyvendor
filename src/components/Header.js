@@ -1,12 +1,56 @@
 import React, { useState, useEffect } from 'react';
 import { Navbar, Nav, Container, Button } from 'react-bootstrap';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FaCalendarAlt, FaUser, FaStore } from 'react-icons/fa';
+import {
+  FaCalendarAlt,
+  FaUser,
+  FaStore,
+  FaThLarge,
+  FaSignOutAlt,
+} from 'react-icons/fa';
+import {
+  PENDING_VENDOR_SIGNUP_EMAIL_KEY,
+  VENDOR_INVITE_TOKEN_KEY,
+  VENDOR_INVITE_DATA_KEY,
+} from '../constants/vendorInviteStorage';
+
+const getDashboardPath = () => {
+  const userId = sessionStorage.getItem('userId');
+  const vendorId = sessionStorage.getItem('vendorId');
+  if (vendorId != null && vendorId !== '') {
+    const v = String(vendorId);
+    if (v === '-1') return '/vendor-onboarding';
+    return '/vendor-dashboard';
+  }
+  if (sessionStorage.getItem(PENDING_VENDOR_SIGNUP_EMAIL_KEY)) {
+    return '/vendor-onboarding';
+  }
+  if (userId) return '/user-dashboard';
+  return '/auth';
+};
+
+const isLoggedIn = () =>
+  !!(
+    sessionStorage.getItem('userId') || sessionStorage.getItem('vendorId')
+  );
 
 const Header = () => {
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const loggedIn = isLoggedIn();
+  const dashboardPath = loggedIn ? getDashboardPath() : '/auth';
+
+  const handleLogout = () => {
+    sessionStorage.removeItem('vendorId');
+    sessionStorage.removeItem('userId');
+    sessionStorage.removeItem(PENDING_VENDOR_SIGNUP_EMAIL_KEY);
+    sessionStorage.removeItem(VENDOR_INVITE_TOKEN_KEY);
+    sessionStorage.removeItem(VENDOR_INVITE_DATA_KEY);
+    navigate('/auth');
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -110,26 +154,53 @@ const Header = () => {
               </Nav.Link>
 
               <div className="d-flex gap-2 ms-3">
-                <Button
-                  as={Link}
-                  to="/user-dashboard"
-                  variant={scrolled ? "outline-primary" : "outline-light"}
-                  size="sm"
-                  className="btn-modern d-flex align-items-center gap-1"
-                >
-                  <FaUser size={12} />
-                  Client
-                </Button>
-                <Button
-                  as={Link}
-                  to="/vendor-dashboard"
-                  variant={scrolled ? "primary" : "light"}
-                  size="sm"
-                  className="btn-modern d-flex align-items-center gap-1"
-                >
-                  <FaStore size={12} />
-                  Vendor
-                </Button>
+                {loggedIn ? (
+                  <>
+                    <Nav.Link
+                      as={Link}
+                      to={dashboardPath}
+                      className={`btn btn-sm btn-modern d-flex align-items-center gap-1 ${
+                        scrolled ? "btn-outline-primary" : "btn-outline-light"
+                      }`}
+                    >
+                      <FaThLarge size={12} />
+                      Dashboard
+                    </Nav.Link>
+                    <Button
+                      type="button"
+                      variant={scrolled ? "primary" : "light"}
+                      size="sm"
+                      className="btn-modern d-flex align-items-center gap-1"
+                      onClick={handleLogout}
+                    >
+                      <FaSignOutAlt size={12} />
+                      Logout
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      as={Link}
+                      to="/user-dashboard"
+                      variant={scrolled ? "outline-primary" : "outline-light"}
+                      size="sm"
+                      className="btn-modern d-flex align-items-center gap-1"
+                    >
+                      <FaUser size={12} />
+                      Client
+                    </Button>
+                    <Button
+                      as={Link}
+                      to="/vendor-dashboard"
+                      variant={scrolled ? "primary" : "light"}
+                      size="sm"
+                      className="btn-modern d-flex align-items-center gap-1"
+                    >
+                      <FaStore size={12} />
+                      Vendor
+                    </Button>
+                  </>
+                )}
               </div>
             </Nav>
           </Navbar.Collapse>

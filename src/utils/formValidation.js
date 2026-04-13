@@ -3,7 +3,8 @@
  */
 
 export function trim(v) {
-  return (v ?? "").trim();
+  if (v == null) return "";
+  return String(v).trim();
 }
 
 export function isNonEmpty(v) {
@@ -15,14 +16,18 @@ export function isValidEmail(v) {
   return EMAIL_RE.test(trim(v));
 }
 
-/** Indian mobile: 10 digits; allows optional +91 / 91 prefix and spaces */
+/** Indian mobile: 10 digits; allows +91 / 91 / 091 / 0091, spaces, dashes, parens, dots; strips a single leading 0 on 11-digit local numbers */
 export function isValidIndiaMobile(v) {
-  const s = trim(v).replace(/\s/g, "");
+  const raw = trim(v);
+  if (!raw) return false;
+  let s = raw.replace(/[\s\-\(\)\.]/g, "");
   if (!s) return false;
-  let digits = s;
-  if (digits.startsWith("+91")) digits = digits.slice(3);
-  else if (digits.startsWith("91") && digits.length === 12) digits = digits.slice(2);
-  return /^\d{10}$/.test(digits);
+  if (s.startsWith("+91")) s = s.slice(3);
+  else if (s.startsWith("0091")) s = s.slice(4);
+  else if (s.startsWith("091")) s = s.slice(3);
+  else if (s.startsWith("91") && s.length >= 12) s = s.slice(2);
+  if (s.startsWith("0") && s.length === 11) s = s.slice(1);
+  return /^\d{10}$/.test(s);
 }
 
 export function isValidIndiaMobileOptional(v) {
@@ -108,7 +113,7 @@ export function validateVendorProfile(form) {
     errors.phone = "Enter a valid 10-digit mobile number.";
   }
   if (!isNonEmpty(form.experience)) errors.experience = "Experience is required.";
-  if (!isNonEmpty(form.priceRange)) errors.priceRange = "Price range is required.";
+  // priceRange is display-only in the vendor edit modal (not sent on update); allow empty when API has no range
   if (!isNonEmpty(form.description)) errors.description = "Description is required.";
   return { valid: Object.keys(errors).length === 0, errors };
 }

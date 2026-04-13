@@ -481,7 +481,7 @@ const VendorDashboard = () => {
               Welcome back, {vendorProfile.uname || "Vendor"}
             </p>
           </div>
-          <div className="d-flex gap-2">
+          {/* <div className="d-flex gap-2">
             <Button
               variant="primary"
               className="btn-modern"
@@ -490,7 +490,7 @@ const VendorDashboard = () => {
               <FaSignOutAlt className="me-2" />
               Logout
             </Button>
-          </div>
+          </div> */}
         </div>
       </motion.div>
 

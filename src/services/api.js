@@ -12,6 +12,13 @@ export const UserRegister = (registerData) =>
 export const getPublicVendorInvite = (token) =>
   api.get(`/public/vendor-invite/${encodeURIComponent(token)}`);
 
+/**
+ * Public contact form (no auth).
+ * Expected body: { name, email, phone?, subject, message } — align with your backend DTO.
+ */
+export const submitContactMessage = (payload) =>
+  api.post(`/otp/email/contact`, payload);
+
 export const fetchVendorsByService = (location, service, budget) =>
   api.get(`/vendors`, { params: { location, service, budget } });
 

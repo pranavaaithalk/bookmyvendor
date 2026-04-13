@@ -287,7 +287,7 @@ const Dashboard = () => {
               Find and book the best vendors for your special day
             </p>
           </div>
-          <div className="d-flex gap-2">
+          {/* <div className="d-flex gap-2">
             <Button
               variant="primary"
               className="btn-modern"
@@ -296,7 +296,7 @@ const Dashboard = () => {
               <FaSignOutAlt className="me-2" />
               Logout
             </Button>
-          </div>
+          </div> */}
           {compareList.length > 0 && (
             <Button variant="warning" className="btn-modern">
               <FaExchangeAlt className="me-2" />

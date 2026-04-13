@@ -58,6 +58,51 @@ export const sendEmailOtp = (email) =>
 export const verifyEmailOtp = (email, code) =>
   otpApiClient.post("/api/otp/email/verify", { email, code });
 
+/**
+ * Public contact form: request an email OTP before the message is accepted.
+ * POST `/api/otp/email/contact`
+ *
+ * Expected JSON body (application/json):
+ *
+ * | Field           | Type   | Required | Description |
+ * |----------------|--------|----------|-------------|
+ * | `email`        | string | yes      | Inbox that receives the OTP; must match the contact form email. |
+ * | `name`         | string | yes      | Sender full name. |
+ * | `phone`        | string | no       | Optional; empty string omitted by caller if unused. |
+ * | `subject`      | string | yes      | Subject category key, e.g. `general`, `booking`, `vendor`, `technical`, `feedback`. |
+ * | `subjectLabel` | string | yes      | Human-readable label for the same category (logging / email template). |
+ * | `message`      | string | yes      | Full message body; server may truncate or store for post-verify submit. |
+ *
+ * Example:
+ * ```json
+ * {
+ *   "email": "user@example.com",
+ *   "name": "Jane Doe",
+ *   "phone": "9876543210",
+ *   "subject": "booking",
+ *   "subjectLabel": "Booking Support",
+ *   "message": "I need help changing my event date."
+ * }
+ * ```
+ *
+ * Verification after delivery: reuse {@link verifyEmailOtp} with the same `email` and the code:
+ * `POST /api/otp/email/verify` body `{ email, code }`.
+ *
+ * @param {ContactEmailOtpPayload} payload
+ * @returns {Promise<import('axios').AxiosResponse>}
+ */
+export const sendContactEmailOtp = (payload) =>
+  otpApiClient.post("/api/otp/email/contact", payload);
+
+/** @typedef {Object} ContactEmailOtpPayload
+ * @property {string} email
+ * @property {string} name
+ * @property {string} [phone]
+ * @property {string} subject
+ * @property {string} subjectLabel
+ * @property {string} message
+ */
+
 export const sendSmsOtp = (phone) =>
   otpApiClient.post("/api/otp/sms/send", { phone });
 

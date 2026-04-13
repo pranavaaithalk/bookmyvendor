@@ -56,8 +56,12 @@ const Auth = () => {
 
   useEffect(() => {
     const type = searchParams.get("type");
-    if (type) {
+    if (type === "client" || type === "vendor") {
       set_userType(type);
+    }
+    const tab = searchParams.get("tab");
+    if (tab === "signup" || tab === "login") {
+      setActiveTab(tab);
     }
   }, [searchParams]);
 
