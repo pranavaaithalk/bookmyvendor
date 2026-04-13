@@ -1,8 +1,11 @@
 package Final.Year.Project.bmv.controller;
 
 import Final.Year.Project.bmv.dto.*;
+import Final.Year.Project.bmv.service.ContactEmailService;
 import Final.Year.Project.bmv.service.OtpService;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,10 +15,31 @@ import java.util.Map;
 @RequestMapping("/api/otp")
 public class OtpController {
 
-    private final OtpService otpService;
+    private static final Logger log = LoggerFactory.getLogger(OtpController.class);
 
-    public OtpController(OtpService otpService) {
+    private final OtpService otpService;
+    private final ContactEmailService contactEmailService;
+
+    public OtpController(OtpService otpService, ContactEmailService contactEmailService) {
         this.otpService = otpService;
+        this.contactEmailService = contactEmailService;
+    }
+
+    /**
+     * Contact form: delivers to configured inbox from {@code contact.from.email},
+     * with {@code Reply-To} set to the submitter's email.
+     */
+    @PostMapping("/email/contact")
+    public ResponseEntity<?> contactEmail(@Valid @RequestBody ContactFormRequest request) {
+        try {
+            contactEmailService.sendContactForm(request);
+            return ResponseEntity.ok(Map.of("message", "Contact message sent"));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(503).body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            log.error("contact-email-failed", e);
+            return ResponseEntity.status(503).body(Map.of("error", "Failed to send contact email"));
+        }
     }
 
     @PostMapping("/email/send")
